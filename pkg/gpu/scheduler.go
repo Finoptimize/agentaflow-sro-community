@@ -8,11 +8,11 @@ import (
 
 // Scheduler manages GPU resources and schedules workloads
 type Scheduler struct {
-	gpus             map[string]*GPU
-	workloadQueue    []*Workload
-	strategy         SchedulingStrategy
-	mu               sync.RWMutex
-	utilizationGoal  float64
+	gpus            map[string]*GPU
+	workloadQueue   []*Workload
+	strategy        SchedulingStrategy
+	mu              sync.RWMutex
+	utilizationGoal float64
 }
 
 // NewScheduler creates a new GPU scheduler
@@ -36,11 +36,11 @@ func (s *Scheduler) RegisterGPU(gpu *GPU) {
 func (s *Scheduler) SubmitWorkload(workload *Workload) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	
+
 	workload.Status = WorkloadPending
 	workload.SubmittedAt = time.Now()
 	s.workloadQueue = append(s.workloadQueue, workload)
-	
+
 	return nil
 }
 
@@ -48,11 +48,11 @@ func (s *Scheduler) SubmitWorkload(workload *Workload) error {
 func (s *Scheduler) Schedule() error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	
+
 	if len(s.workloadQueue) == 0 {
 		return nil
 	}
-	
+
 	switch s.strategy {
 	case StrategyLeastUtilized:
 		return s.scheduleLeastUtilized()
@@ -70,7 +70,7 @@ func (s *Scheduler) Schedule() error {
 // scheduleLeastUtilized assigns workloads to the least utilized GPU
 func (s *Scheduler) scheduleLeastUtilized() error {
 	remaining := make([]*Workload, 0)
-	
+
 	for _, workload := range s.workloadQueue {
 		gpu := s.findLeastUtilizedGPU(workload.MemoryRequired)
 		if gpu != nil {
@@ -79,7 +79,7 @@ func (s *Scheduler) scheduleLeastUtilized() error {
 			remaining = append(remaining, workload)
 		}
 	}
-	
+
 	s.workloadQueue = remaining
 	return nil
 }
@@ -87,7 +87,7 @@ func (s *Scheduler) scheduleLeastUtilized() error {
 // scheduleBestFit finds the GPU with just enough resources
 func (s *Scheduler) scheduleBestFit() error {
 	remaining := make([]*Workload, 0)
-	
+
 	for _, workload := range s.workloadQueue {
 		gpu := s.findBestFitGPU(workload.MemoryRequired)
 		if gpu != nil {
@@ -96,7 +96,7 @@ func (s *Scheduler) scheduleBestFit() error {
 			remaining = append(remaining, workload)
 		}
 	}
-	
+
 	s.workloadQueue = remaining
 	return nil
 }
@@ -111,7 +111,7 @@ func (s *Scheduler) schedulePriority() error {
 			}
 		}
 	}
-	
+
 	return s.scheduleLeastUtilized()
 }
 
@@ -123,32 +123,32 @@ func (s *Scheduler) scheduleRoundRobin() error {
 			gpuList = append(gpuList, gpu)
 		}
 	}
-	
+
 	if len(gpuList) == 0 {
 		return nil
 	}
-	
+
 	remaining := make([]*Workload, 0)
 	gpuIndex := 0
-	
+
 	for _, workload := range s.workloadQueue {
 		assigned := false
 		for i := 0; i < len(gpuList); i++ {
 			gpu := gpuList[gpuIndex]
 			gpuIndex = (gpuIndex + 1) % len(gpuList)
-			
+
 			if s.canAssign(gpu, workload) {
 				s.assignWorkload(gpu, workload)
 				assigned = true
 				break
 			}
 		}
-		
+
 		if !assigned {
 			remaining = append(remaining, workload)
 		}
 	}
-	
+
 	s.workloadQueue = remaining
 	return nil
 }
@@ -157,7 +157,7 @@ func (s *Scheduler) scheduleRoundRobin() error {
 func (s *Scheduler) findLeastUtilizedGPU(memoryRequired uint64) *GPU {
 	var bestGPU *GPU
 	minUtilization := 101.0
-	
+
 	for _, gpu := range s.gpus {
 		if s.canAssign(gpu, &Workload{MemoryRequired: memoryRequired}) {
 			if gpu.Utilization < minUtilization {
@@ -166,7 +166,7 @@ func (s *Scheduler) findLeastUtilizedGPU(memoryRequired uint64) *GPU {
 			}
 		}
 	}
-	
+
 	return bestGPU
 }
 
@@ -174,7 +174,7 @@ func (s *Scheduler) findLeastUtilizedGPU(memoryRequired uint64) *GPU {
 func (s *Scheduler) findBestFitGPU(memoryRequired uint64) *GPU {
 	var bestGPU *GPU
 	minFreeMemory := uint64(^uint64(0))
-	
+
 	for _, gpu := range s.gpus {
 		freeMemory := gpu.MemoryTotal - gpu.MemoryUsed
 		if freeMemory >= memoryRequired && freeMemory < minFreeMemory {
@@ -182,7 +182,7 @@ func (s *Scheduler) findBestFitGPU(memoryRequired uint64) *GPU {
 			bestGPU = gpu
 		}
 	}
-	
+
 	return bestGPU
 }
 
@@ -191,7 +191,7 @@ func (s *Scheduler) canAssign(gpu *GPU, workload *Workload) bool {
 	if !gpu.Available || gpu.CurrentWorkload != nil {
 		return false
 	}
-	
+
 	freeMemory := gpu.MemoryTotal - gpu.MemoryUsed
 	return freeMemory >= workload.MemoryRequired
 }
@@ -202,7 +202,7 @@ func (s *Scheduler) assignWorkload(gpu *GPU, workload *Workload) {
 	workload.Status = WorkloadRunning
 	workload.AssignedGPU = gpu.ID
 	workload.StartedAt = &now
-	
+
 	gpu.CurrentWorkload = workload
 	gpu.MemoryUsed += workload.MemoryRequired
 }
@@ -211,13 +211,13 @@ func (s *Scheduler) assignWorkload(gpu *GPU, workload *Workload) {
 func (s *Scheduler) GetUtilizationMetrics() map[string]interface{} {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
-	
+
 	totalGPUs := len(s.gpus)
 	activeGPUs := 0
 	totalUtilization := 0.0
 	totalMemoryUsed := uint64(0)
 	totalMemoryAvailable := uint64(0)
-	
+
 	for _, gpu := range s.gpus {
 		if gpu.CurrentWorkload != nil {
 			activeGPUs++
@@ -226,21 +226,21 @@ func (s *Scheduler) GetUtilizationMetrics() map[string]interface{} {
 		totalMemoryUsed += gpu.MemoryUsed
 		totalMemoryAvailable += gpu.MemoryTotal
 	}
-	
+
 	avgUtilization := 0.0
 	if totalGPUs > 0 {
 		avgUtilization = totalUtilization / float64(totalGPUs)
 	}
-	
+
 	return map[string]interface{}{
-		"total_gpus":            totalGPUs,
-		"active_gpus":           activeGPUs,
-		"average_utilization":   avgUtilization,
-		"memory_used_mb":        totalMemoryUsed,
-		"memory_available_mb":   totalMemoryAvailable,
-		"memory_utilization":    float64(totalMemoryUsed) / float64(totalMemoryAvailable) * 100,
-		"pending_workloads":     len(s.workloadQueue),
-		"utilization_goal":      s.utilizationGoal,
+		"total_gpus":          totalGPUs,
+		"active_gpus":         activeGPUs,
+		"average_utilization": avgUtilization,
+		"memory_used_mb":      totalMemoryUsed,
+		"memory_available_mb": totalMemoryAvailable,
+		"memory_utilization":  float64(totalMemoryUsed) / float64(totalMemoryAvailable) * 100,
+		"pending_workloads":   len(s.workloadQueue),
+		"utilization_goal":    s.utilizationGoal,
 	}
 }
 
@@ -248,7 +248,7 @@ func (s *Scheduler) GetUtilizationMetrics() map[string]interface{} {
 func (s *Scheduler) CompleteWorkload(workloadID string) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	
+
 	for _, gpu := range s.gpus {
 		if gpu.CurrentWorkload != nil && gpu.CurrentWorkload.ID == workloadID {
 			now := time.Now()
@@ -259,7 +259,7 @@ func (s *Scheduler) CompleteWorkload(workloadID string) error {
 			return nil
 		}
 	}
-	
+
 	return fmt.Errorf("workload %s not found", workloadID)
 }
 
@@ -267,7 +267,7 @@ func (s *Scheduler) CompleteWorkload(workloadID string) error {
 func (s *Scheduler) GetGPUStatus() []*GPU {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
-	
+
 	gpus := make([]*GPU, 0, len(s.gpus))
 	for _, gpu := range s.gpus {
 		gpus = append(gpus, gpu)

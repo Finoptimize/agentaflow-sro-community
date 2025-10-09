@@ -60,7 +60,7 @@ func NewDebugger(level DebugLevel) *Debugger {
 func (d *Debugger) Log(level DebugLevel, source, message string, data map[string]interface{}) {
 	d.mu.Lock()
 	defer d.mu.Unlock()
-	
+
 	entry := DebugEntry{
 		Level:     level,
 		Message:   message,
@@ -68,7 +68,7 @@ func (d *Debugger) Log(level DebugLevel, source, message string, data map[string
 		Data:      data,
 		Timestamp: time.Now(),
 	}
-	
+
 	d.logs = append(d.logs, entry)
 }
 
@@ -76,7 +76,7 @@ func (d *Debugger) Log(level DebugLevel, source, message string, data map[string
 func (d *Debugger) StartTrace(traceID, operation string, tags map[string]string) {
 	d.mu.Lock()
 	defer d.mu.Unlock()
-	
+
 	trace := &Trace{
 		ID:        traceID,
 		Operation: operation,
@@ -85,7 +85,7 @@ func (d *Debugger) StartTrace(traceID, operation string, tags map[string]string)
 		Tags:      tags,
 		Logs:      make([]DebugEntry, 0),
 	}
-	
+
 	d.traces[traceID] = trace
 }
 
@@ -93,17 +93,17 @@ func (d *Debugger) StartTrace(traceID, operation string, tags map[string]string)
 func (d *Debugger) EndTrace(traceID string, status string) error {
 	d.mu.Lock()
 	defer d.mu.Unlock()
-	
+
 	trace, exists := d.traces[traceID]
 	if !exists {
 		return fmt.Errorf("trace %s not found", traceID)
 	}
-	
+
 	now := time.Now()
 	trace.EndTime = &now
 	trace.Duration = now.Sub(trace.StartTime)
 	trace.Status = status
-	
+
 	return nil
 }
 
@@ -111,19 +111,19 @@ func (d *Debugger) EndTrace(traceID string, status string) error {
 func (d *Debugger) AddTraceLog(traceID string, level DebugLevel, message string, data map[string]interface{}) error {
 	d.mu.Lock()
 	defer d.mu.Unlock()
-	
+
 	trace, exists := d.traces[traceID]
 	if !exists {
 		return fmt.Errorf("trace %s not found", traceID)
 	}
-	
+
 	entry := DebugEntry{
 		Level:     level,
 		Message:   message,
 		Data:      data,
 		Timestamp: time.Now(),
 	}
-	
+
 	trace.Logs = append(trace.Logs, entry)
 	return nil
 }
@@ -132,12 +132,12 @@ func (d *Debugger) AddTraceLog(traceID string, level DebugLevel, message string,
 func (d *Debugger) GetTrace(traceID string) (*Trace, error) {
 	d.mu.RLock()
 	defer d.mu.RUnlock()
-	
+
 	trace, exists := d.traces[traceID]
 	if !exists {
 		return nil, fmt.Errorf("trace %s not found", traceID)
 	}
-	
+
 	return trace, nil
 }
 
@@ -145,7 +145,7 @@ func (d *Debugger) GetTrace(traceID string) (*Trace, error) {
 func (d *Debugger) GetLogs(level DebugLevel, start, end time.Time) []DebugEntry {
 	d.mu.RLock()
 	defer d.mu.RUnlock()
-	
+
 	result := make([]DebugEntry, 0)
 	for _, log := range d.logs {
 		if log.Timestamp.After(start) && log.Timestamp.Before(end) {
@@ -154,7 +154,7 @@ func (d *Debugger) GetLogs(level DebugLevel, start, end time.Time) []DebugEntry 
 			}
 		}
 	}
-	
+
 	return result
 }
 
@@ -162,12 +162,12 @@ func (d *Debugger) GetLogs(level DebugLevel, start, end time.Time) []DebugEntry 
 func (d *Debugger) GetTraces() []*Trace {
 	d.mu.RLock()
 	defer d.mu.RUnlock()
-	
+
 	traces := make([]*Trace, 0, len(d.traces))
 	for _, trace := range d.traces {
 		traces = append(traces, trace)
 	}
-	
+
 	return traces
 }
 
@@ -175,24 +175,24 @@ func (d *Debugger) GetTraces() []*Trace {
 func (d *Debugger) GetDebugStats() map[string]interface{} {
 	d.mu.RLock()
 	defer d.mu.RUnlock()
-	
+
 	totalLogs := len(d.logs)
 	totalTraces := len(d.traces)
 	activeTraces := 0
 	errorLogs := 0
-	
+
 	for _, trace := range d.traces {
 		if trace.EndTime == nil {
 			activeTraces++
 		}
 	}
-	
+
 	for _, log := range d.logs {
 		if log.Level == DebugLevelError {
 			errorLogs++
 		}
 	}
-	
+
 	return map[string]interface{}{
 		"total_logs":    totalLogs,
 		"total_traces":  totalTraces,
@@ -206,31 +206,31 @@ func (d *Debugger) GetDebugStats() map[string]interface{} {
 func (d *Debugger) AnalyzePerformance() map[string]interface{} {
 	d.mu.RLock()
 	defer d.mu.RUnlock()
-	
+
 	operationStats := make(map[string]struct {
-		count      int
-		totalTime  time.Duration
-		avgTime    time.Duration
-		maxTime    time.Duration
+		count     int
+		totalTime time.Duration
+		avgTime   time.Duration
+		maxTime   time.Duration
 	})
-	
+
 	for _, trace := range d.traces {
 		if trace.EndTime == nil {
 			continue
 		}
-		
+
 		stats := operationStats[trace.Operation]
 		stats.count++
 		stats.totalTime += trace.Duration
-		
+
 		if trace.Duration > stats.maxTime {
 			stats.maxTime = trace.Duration
 		}
-		
+
 		stats.avgTime = stats.totalTime / time.Duration(stats.count)
 		operationStats[trace.Operation] = stats
 	}
-	
+
 	result := make(map[string]interface{})
 	for op, stats := range operationStats {
 		result[op] = map[string]interface{}{
@@ -239,6 +239,6 @@ func (d *Debugger) AnalyzePerformance() map[string]interface{} {
 			"max_duration": stats.maxTime.Milliseconds(),
 		}
 	}
-	
+
 	return result
 }

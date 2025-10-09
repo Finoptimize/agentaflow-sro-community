@@ -73,7 +73,7 @@ func demoGPUScheduling(monitor *observability.MonitoringService, debugger *obser
 
 	for _, g := range gpus {
 		scheduler.RegisterGPU(g)
-		debugger.Log(observability.DebugLevelInfo, "gpu_scheduler", 
+		debugger.Log(observability.DebugLevelInfo, "gpu_scheduler",
 			fmt.Sprintf("Registered GPU: %s", g.ID), nil)
 	}
 
@@ -240,7 +240,7 @@ func demoModelServing(monitor *observability.MonitoringService, debugger *observ
 			cacheStatus = "hit"
 		}
 
-		fmt.Printf("  Request %s: Latency=%vms, Cache=%s\n", 
+		fmt.Printf("  Request %s: Latency=%vms, Cache=%s\n",
 			req.ID, resp.Latency.Milliseconds(), cacheStatus)
 
 		// Record metrics
@@ -249,8 +249,8 @@ func demoModelServing(monitor *observability.MonitoringService, debugger *observ
 			Type:  observability.MetricHistogram,
 			Value: float64(resp.Latency.Milliseconds()),
 			Labels: map[string]string{
-				"model":  req.ModelID,
-				"cache":  cacheStatus,
+				"model": req.ModelID,
+				"cache": cacheStatus,
 			},
 		})
 	}
@@ -317,7 +317,7 @@ func demoObservability(monitor *observability.MonitoringService, debugger *obser
 	// Get cost summary
 	now := time.Now()
 	summary := monitor.GetCostSummary(now.Add(-24*time.Hour), now)
-	
+
 	fmt.Println("Cost Summary (Last 24 Hours):")
 	fmt.Printf("  Total Cost: $%.2f\n", summary["total_cost"])
 	fmt.Printf("  Inference Cost: $%.2f\n", summary["inference_cost"])

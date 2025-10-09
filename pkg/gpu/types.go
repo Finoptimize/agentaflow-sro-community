@@ -6,8 +6,8 @@ import "time"
 type GPU struct {
 	ID              string
 	Name            string
-	MemoryTotal     uint64 // in MB
-	MemoryUsed      uint64 // in MB
+	MemoryTotal     uint64  // in MB
+	MemoryUsed      uint64  // in MB
 	Utilization     float64 // 0-100%
 	Temperature     float64
 	PowerUsage      float64
@@ -17,16 +17,16 @@ type GPU struct {
 
 // Workload represents a task that requires GPU resources
 type Workload struct {
-	ID              string
-	Name            string
-	Priority        int
-	MemoryRequired  uint64
-	EstimatedTime   time.Duration
-	Status          WorkloadStatus
-	AssignedGPU     string
-	SubmittedAt     time.Time
-	StartedAt       *time.Time
-	CompletedAt     *time.Time
+	ID             string
+	Name           string
+	Priority       int
+	MemoryRequired uint64
+	EstimatedTime  time.Duration
+	Status         WorkloadStatus
+	AssignedGPU    string
+	SubmittedAt    time.Time
+	StartedAt      *time.Time
+	CompletedAt    *time.Time
 }
 
 // WorkloadStatus represents the current state of a workload
@@ -43,8 +43,8 @@ const (
 type SchedulingStrategy string
 
 const (
-	StrategyRoundRobin     SchedulingStrategy = "round_robin"
-	StrategyLeastUtilized  SchedulingStrategy = "least_utilized"
-	StrategyBestFit        SchedulingStrategy = "best_fit"
-	StrategyPriority       SchedulingStrategy = "priority"
+	StrategyRoundRobin    SchedulingStrategy = "round_robin"
+	StrategyLeastUtilized SchedulingStrategy = "least_utilized"
+	StrategyBestFit       SchedulingStrategy = "best_fit"
+	StrategyPriority      SchedulingStrategy = "priority"
 )

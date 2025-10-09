@@ -79,12 +79,12 @@ func TestCostTracking(t *testing.T) {
 	}
 
 	cost2 := CostEntry{
-		ID:         "cost-2",
-		Operation:  "training",
-		ModelID:    "model-2",
-		GPUHours:   4.0,
-		Cost:       12.00,
-		Currency:   "USD",
+		ID:        "cost-2",
+		Operation: "training",
+		ModelID:   "model-2",
+		GPUHours:  4.0,
+		Cost:      12.00,
+		Currency:  "USD",
 	}
 
 	monitor.RecordCost(cost1)

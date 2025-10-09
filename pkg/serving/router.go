@@ -10,20 +10,20 @@ import (
 type RoutingStrategy string
 
 const (
-	RouteRoundRobin    RoutingStrategy = "round_robin"
-	RouteLeastLatency  RoutingStrategy = "least_latency"
-	RouteLeastLoad     RoutingStrategy = "least_load"
+	RouteRoundRobin   RoutingStrategy = "round_robin"
+	RouteLeastLatency RoutingStrategy = "least_latency"
+	RouteLeastLoad    RoutingStrategy = "least_load"
 )
 
 // ModelInstance represents a running instance of a model
 type ModelInstance struct {
-	ID              string
-	ModelID         string
-	Endpoint        string
-	CurrentLoad     int
-	MaxLoad         int
-	AverageLatency  time.Duration
-	Available       bool
+	ID             string
+	ModelID        string
+	Endpoint       string
+	CurrentLoad    int
+	MaxLoad        int
+	AverageLatency time.Duration
+	Available      bool
 }
 
 // Router manages request routing across model instances
@@ -45,11 +45,11 @@ func NewRouter(strategy RoutingStrategy) *Router {
 func (r *Router) RegisterInstance(instance *ModelInstance) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	
+
 	if _, exists := r.instances[instance.ModelID]; !exists {
 		r.instances[instance.ModelID] = make([]*ModelInstance, 0)
 	}
-	
+
 	r.instances[instance.ModelID] = append(r.instances[instance.ModelID], instance)
 }
 
@@ -57,12 +57,12 @@ func (r *Router) RegisterInstance(instance *ModelInstance) {
 func (r *Router) RouteRequest(modelID string) (*ModelInstance, error) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
-	
+
 	instances, exists := r.instances[modelID]
 	if !exists || len(instances) == 0 {
 		return nil, fmt.Errorf("no instances available for model %s", modelID)
 	}
-	
+
 	switch r.strategy {
 	case RouteLeastLatency:
 		return r.routeByLatency(instances)
@@ -79,7 +79,7 @@ func (r *Router) RouteRequest(modelID string) (*ModelInstance, error) {
 func (r *Router) routeByLatency(instances []*ModelInstance) (*ModelInstance, error) {
 	var best *ModelInstance
 	minLatency := time.Duration(1<<63 - 1)
-	
+
 	for _, instance := range instances {
 		if instance.Available && instance.CurrentLoad < instance.MaxLoad {
 			if instance.AverageLatency < minLatency {
@@ -88,11 +88,11 @@ func (r *Router) routeByLatency(instances []*ModelInstance) (*ModelInstance, err
 			}
 		}
 	}
-	
+
 	if best == nil {
 		return nil, fmt.Errorf("no available instances")
 	}
-	
+
 	return best, nil
 }
 
@@ -100,7 +100,7 @@ func (r *Router) routeByLatency(instances []*ModelInstance) (*ModelInstance, err
 func (r *Router) routeByLoad(instances []*ModelInstance) (*ModelInstance, error) {
 	var best *ModelInstance
 	minLoad := int(^uint(0) >> 1)
-	
+
 	for _, instance := range instances {
 		if instance.Available && instance.CurrentLoad < instance.MaxLoad {
 			if instance.CurrentLoad < minLoad {
@@ -109,11 +109,11 @@ func (r *Router) routeByLoad(instances []*ModelInstance) (*ModelInstance, error)
 			}
 		}
 	}
-	
+
 	if best == nil {
 		return nil, fmt.Errorf("no available instances")
 	}
-	
+
 	return best, nil
 }
 
@@ -124,7 +124,7 @@ func (r *Router) routeRoundRobin(instances []*ModelInstance) (*ModelInstance, er
 			return instance, nil
 		}
 	}
-	
+
 	return nil, fmt.Errorf("no available instances")
 }
 
@@ -132,10 +132,10 @@ func (r *Router) routeRoundRobin(instances []*ModelInstance) (*ModelInstance, er
 func (r *Router) GetRoutingMetrics() map[string]interface{} {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
-	
+
 	totalInstances := 0
 	availableInstances := 0
-	
+
 	for _, instances := range r.instances {
 		totalInstances += len(instances)
 		for _, instance := range instances {
@@ -144,7 +144,7 @@ func (r *Router) GetRoutingMetrics() map[string]interface{} {
 			}
 		}
 	}
-	
+
 	return map[string]interface{}{
 		"total_instances":     totalInstances,
 		"available_instances": availableInstances,

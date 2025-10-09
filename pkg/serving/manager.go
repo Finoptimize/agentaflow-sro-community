@@ -10,12 +10,12 @@ import (
 
 // Model represents an AI model being served
 type Model struct {
-	ID          string
-	Name        string
-	Version     string
-	Framework   string
-	MemorySize  uint64
-	LoadedAt    time.Time
+	ID         string
+	Name       string
+	Version    string
+	Framework  string
+	MemorySize uint64
+	LoadedAt   time.Time
 }
 
 // InferenceRequest represents a request for model inference
@@ -40,9 +40,9 @@ type InferenceResponse struct {
 
 // BatchConfig defines batching behavior
 type BatchConfig struct {
-	MaxBatchSize   int
-	MaxWaitTime    time.Duration
-	MinBatchSize   int
+	MaxBatchSize int
+	MaxWaitTime  time.Duration
+	MinBatchSize int
 }
 
 // CacheEntry stores cached inference results
@@ -72,7 +72,7 @@ func NewServingManager(batchConfig *BatchConfig, cacheTTL time.Duration) *Servin
 			MinBatchSize: 1,
 		}
 	}
-	
+
 	return &ServingManager{
 		models:       make(map[string]*Model),
 		requestQueue: make([]*InferenceRequest, 0),
@@ -86,7 +86,7 @@ func NewServingManager(batchConfig *BatchConfig, cacheTTL time.Duration) *Servin
 func (sm *ServingManager) RegisterModel(model *Model) error {
 	sm.mu.Lock()
 	defer sm.mu.Unlock()
-	
+
 	model.LoadedAt = time.Now()
 	sm.models[model.ID] = model
 	return nil
@@ -95,7 +95,7 @@ func (sm *ServingManager) RegisterModel(model *Model) error {
 // SubmitInferenceRequest submits a new inference request
 func (sm *ServingManager) SubmitInferenceRequest(req *InferenceRequest) (*InferenceResponse, error) {
 	req.CreatedAt = time.Now()
-	
+
 	// Check cache first
 	cacheKey := sm.generateCacheKey(req.ModelID, req.Input)
 	if cached := sm.checkCache(cacheKey); cached != nil {
@@ -103,11 +103,11 @@ func (sm *ServingManager) SubmitInferenceRequest(req *InferenceRequest) (*Infere
 		sm.incrementCacheHit(cacheKey)
 		return cached, nil
 	}
-	
+
 	sm.mu.Lock()
 	sm.requestQueue = append(sm.requestQueue, req)
 	sm.mu.Unlock()
-	
+
 	// In a real implementation, this would process asynchronously
 	// For now, simulate processing
 	response := &InferenceResponse{
@@ -118,10 +118,10 @@ func (sm *ServingManager) SubmitInferenceRequest(req *InferenceRequest) (*Infere
 		BatchSize:   1,
 		CompletedAt: time.Now(),
 	}
-	
+
 	// Store in cache
 	sm.storeInCache(cacheKey, response)
-	
+
 	return response, nil
 }
 
@@ -135,17 +135,17 @@ func (sm *ServingManager) generateCacheKey(modelID string, input []byte) string 
 func (sm *ServingManager) checkCache(key string) *InferenceResponse {
 	sm.mu.RLock()
 	defer sm.mu.RUnlock()
-	
+
 	entry, exists := sm.cache[key]
 	if !exists {
 		return nil
 	}
-	
+
 	if time.Now().After(entry.ExpiresAt) {
 		delete(sm.cache, key)
 		return nil
 	}
-	
+
 	return entry.Response
 }
 
@@ -153,7 +153,7 @@ func (sm *ServingManager) checkCache(key string) *InferenceResponse {
 func (sm *ServingManager) incrementCacheHit(key string) {
 	sm.mu.Lock()
 	defer sm.mu.Unlock()
-	
+
 	if entry, exists := sm.cache[key]; exists {
 		entry.HitCount++
 	}
@@ -163,7 +163,7 @@ func (sm *ServingManager) incrementCacheHit(key string) {
 func (sm *ServingManager) storeInCache(key string, response *InferenceResponse) {
 	sm.mu.Lock()
 	defer sm.mu.Unlock()
-	
+
 	sm.cache[key] = &CacheEntry{
 		Key:       key,
 		Response:  response,
@@ -175,18 +175,18 @@ func (sm *ServingManager) storeInCache(key string, response *InferenceResponse) 
 // ProcessBatch processes queued requests in batches
 func (sm *ServingManager) ProcessBatch() ([]*InferenceResponse, error) {
 	sm.mu.Lock()
-	
+
 	if len(sm.requestQueue) == 0 {
 		sm.mu.Unlock()
 		return nil, nil
 	}
-	
+
 	batchSize := min(len(sm.requestQueue), sm.batchConfig.MaxBatchSize)
 	batch := sm.requestQueue[:batchSize]
 	sm.requestQueue = sm.requestQueue[batchSize:]
-	
+
 	sm.mu.Unlock()
-	
+
 	// Process batch
 	responses := make([]*InferenceResponse, len(batch))
 	for i, req := range batch {
@@ -199,7 +199,7 @@ func (sm *ServingManager) ProcessBatch() ([]*InferenceResponse, error) {
 			CompletedAt: time.Now(),
 		}
 	}
-	
+
 	return responses, nil
 }
 
@@ -207,11 +207,11 @@ func (sm *ServingManager) ProcessBatch() ([]*InferenceResponse, error) {
 func (sm *ServingManager) GetCacheMetrics() map[string]interface{} {
 	sm.mu.RLock()
 	defer sm.mu.RUnlock()
-	
+
 	totalEntries := len(sm.cache)
 	totalHits := 0
 	expiredEntries := 0
-	
+
 	now := time.Now()
 	for _, entry := range sm.cache {
 		totalHits += entry.HitCount
@@ -219,12 +219,12 @@ func (sm *ServingManager) GetCacheMetrics() map[string]interface{} {
 			expiredEntries++
 		}
 	}
-	
+
 	return map[string]interface{}{
-		"total_entries":    totalEntries,
-		"total_hits":       totalHits,
-		"expired_entries":  expiredEntries,
-		"cache_ttl_sec":    sm.cacheTTL.Seconds(),
+		"total_entries":   totalEntries,
+		"total_hits":      totalHits,
+		"expired_entries": expiredEntries,
+		"cache_ttl_sec":   sm.cacheTTL.Seconds(),
 	}
 }
 
@@ -232,13 +232,13 @@ func (sm *ServingManager) GetCacheMetrics() map[string]interface{} {
 func (sm *ServingManager) GetServingMetrics() map[string]interface{} {
 	sm.mu.RLock()
 	defer sm.mu.RUnlock()
-	
+
 	return map[string]interface{}{
-		"total_models":      len(sm.models),
-		"pending_requests":  len(sm.requestQueue),
-		"max_batch_size":    sm.batchConfig.MaxBatchSize,
-		"min_batch_size":    sm.batchConfig.MinBatchSize,
-		"max_wait_time_ms":  sm.batchConfig.MaxWaitTime.Milliseconds(),
+		"total_models":     len(sm.models),
+		"pending_requests": len(sm.requestQueue),
+		"max_batch_size":   sm.batchConfig.MaxBatchSize,
+		"min_batch_size":   sm.batchConfig.MinBatchSize,
+		"max_wait_time_ms": sm.batchConfig.MaxWaitTime.Milliseconds(),
 	}
 }
 
@@ -246,17 +246,17 @@ func (sm *ServingManager) GetServingMetrics() map[string]interface{} {
 func (sm *ServingManager) CleanExpiredCache() int {
 	sm.mu.Lock()
 	defer sm.mu.Unlock()
-	
+
 	removed := 0
 	now := time.Now()
-	
+
 	for key, entry := range sm.cache {
 		if now.After(entry.ExpiresAt) {
 			delete(sm.cache, key)
 			removed++
 		}
 	}
-	
+
 	return removed
 }
 
