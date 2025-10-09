@@ -7,7 +7,7 @@
 *.dll
 *.so
 *.dylib
-agentaflow
+/agentaflow
 
 # Test binary, built with `go test -c`
 *.test
