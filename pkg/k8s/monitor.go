@@ -379,8 +379,8 @@ func (gm *GPUMonitor) CheckGPUHealth() (*GPUHealthReport, error) {
 		}
 
 		// Check memory usage
-		if status.MemoryUsed > 0 {
-			memoryUsagePercent := float64(status.MemoryUsed) / float64(status.MemoryUsed+1000) * 100 // Approximate
+		if status.MemoryUsed > 0 && status.MemoryTotal > 0 {
+			memoryUsagePercent := float64(status.MemoryUsed) / float64(status.MemoryTotal) * 100
 			if memoryUsagePercent > 90.0 {
 				report.Issues = append(report.Issues, GPUHealthIssue{
 					GPUID:    status.ID,
