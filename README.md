@@ -173,10 +173,23 @@ Contributions are welcome! This is a community edition focused on providing acce
 - Web dashboard for monitoring
 - OpenTelemetry support for tracing
 
+## 🚀 Enterprise Edition (Coming Soon)
+
+Looking for advanced features for production environments? Our **Enterprise Edition** will include:
+
+- **Multi-cluster Orchestration**: Manage GPU resources across multiple Kubernetes clusters
+- **Advanced Scheduling Algorithms**: Cost optimization algorithms and priority queues for enterprise workloads  
+- **RBAC and Audit Logs**: Role-based access control and comprehensive audit logging
+- **Enterprise Integrations**: Slack alerts, DataDog monitoring, and other enterprise tools
+- **SLA Support**: Guaranteed service levels with dedicated support
+- **Usage-based Billing Features**: Advanced cost tracking and billing automation
+
+*Contact us for early access and enterprise pricing.*
+
 ## 📞 Support
 
 For questions, issues, or contributions, please open an issue on GitHub.
 
 ---
 
-**Built with ❤️ by FinOptimize**
+**Built with ❤️ by FinOptimize for AgentaFlow**
