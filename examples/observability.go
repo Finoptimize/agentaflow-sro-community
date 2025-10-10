@@ -7,8 +7,8 @@ import (
 	"github.com/Finoptimize/agentaflow-sro-community/pkg/observability"
 )
 
-func main() {
-	fmt.Println("=== Observability & Cost Tracking Example ===\n")
+func runObservabilityExample() {
+	fmt.Println("=== Observability Example ===")
 
 	// Create monitoring service
 	fmt.Println("1. Initializing monitoring service...")

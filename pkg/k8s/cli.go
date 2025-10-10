@@ -10,6 +10,7 @@ import (
 	"github.com/Finoptimize/agentaflow-sro-community/pkg/gpu"
 	"gopkg.in/yaml.v2"
 	v1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -404,10 +405,10 @@ func (cli *GPUSchedulerCLI) GenerateWorkloadTemplate(filename string) error {
 							},
 							Resources: v1.ResourceRequirements{
 								Requests: v1.ResourceList{
-									"nvidia.com/gpu": *metav1.NewQuantity(1, metav1.DecimalSI),
+									"nvidia.com/gpu": *resource.NewQuantity(1, resource.DecimalSI),
 								},
 								Limits: v1.ResourceList{
-									"nvidia.com/gpu": *metav1.NewQuantity(1, metav1.DecimalSI),
+									"nvidia.com/gpu": *resource.NewQuantity(1, resource.DecimalSI),
 								},
 							},
 						},

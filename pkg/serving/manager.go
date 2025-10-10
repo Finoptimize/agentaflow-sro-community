@@ -84,6 +84,16 @@ func NewServingManager(batchConfig *BatchConfig, cacheTTL time.Duration) *Servin
 
 // RegisterModel adds a model to the serving manager
 func (sm *ServingManager) RegisterModel(model *Model) error {
+	if model == nil {
+		return fmt.Errorf("model cannot be nil")
+	}
+	if model.ID == "" {
+		return fmt.Errorf("model ID cannot be empty")
+	}
+	if model.Name == "" {
+		return fmt.Errorf("model name cannot be empty")
+	}
+
 	sm.mu.Lock()
 	defer sm.mu.Unlock()
 
@@ -94,6 +104,19 @@ func (sm *ServingManager) RegisterModel(model *Model) error {
 
 // SubmitInferenceRequest submits a new inference request
 func (sm *ServingManager) SubmitInferenceRequest(req *InferenceRequest) (*InferenceResponse, error) {
+	if req == nil {
+		return nil, fmt.Errorf("inference request cannot be nil")
+	}
+	if req.ID == "" {
+		return nil, fmt.Errorf("request ID cannot be empty")
+	}
+	if req.ModelID == "" {
+		return nil, fmt.Errorf("model ID cannot be empty")
+	}
+	if len(req.Input) == 0 {
+		return nil, fmt.Errorf("request input cannot be empty")
+	}
+
 	req.CreatedAt = time.Now()
 
 	// Check cache first

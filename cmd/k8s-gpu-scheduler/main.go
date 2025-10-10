@@ -122,12 +122,7 @@ func runMonitor(ctx context.Context, nodeName, namespace string) error {
 	}
 
 	// Create monitor
-	var clientset interface{}
-	if ks, ok := scheduler.(*k8s.KubernetesGPUScheduler); ok {
-		clientset = ks.GetClientset()
-	} else {
-		return fmt.Errorf("scheduler is not of type *KubernetesGPUScheduler")
-	}
+	clientset := scheduler.GetClientset()
 	monitor := k8s.NewGPUMonitor(clientset, nodeName, namespace)
 
 	// Start monitor
