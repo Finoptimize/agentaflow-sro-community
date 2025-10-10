@@ -2,6 +2,8 @@
 
 **AI Infrastructure Tooling & Optimization Platform**
 
+### Author: DeWitt Gibson (@dewitt4)
+
 Deploy and manage AI infrastructure more efficiently with tools for GPU orchestration, model serving optimization, and comprehensive observability.
 
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
