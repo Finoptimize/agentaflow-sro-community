@@ -293,7 +293,7 @@ Contributions are welcome! This is a community edition focused on providing core
 
 ## Roadmap
 
-- [ ] Add Kubernetes integration for GPU scheduling
+- [x] Add Kubernetes integration for GPU scheduling
 - [ ] Support for multi-cloud GPU resources
 - [ ] Advanced cost prediction and budgeting
 - [ ] Real-time GPU metrics collection

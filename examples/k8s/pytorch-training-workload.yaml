@@ -1,0 +1,69 @@
+apiVersion: agentaflow.io/v1
+kind: GPUWorkload
+metadata:
+  name: pytorch-training-job
+  namespace: agentaflow
+spec:
+  priority: 5
+  gpuMemoryRequired: 16384  # 16GB GPU memory required
+  estimatedDuration: 4h
+  schedulingStrategy: "least_utilized"
+  gpuRequirements:
+    minGPUMemory: 16384
+    preferredGPUType: "NVIDIA A100"
+    gpuCount: 1
+    exclusiveAccess: true
+  podTemplate:
+    metadata:
+      labels:
+        app: pytorch-training
+        workload: training-job
+    spec:
+      restartPolicy: Never
+      containers:
+      - name: training-container
+        image: pytorch/pytorch:1.13.1-cuda11.6-cudnn8-runtime
+        command:
+        - python
+        - /workspace/train.py
+        - --epochs=100
+        - --batch-size=32
+        - --learning-rate=0.001
+        env:
+        - name: CUDA_VISIBLE_DEVICES
+          value: "0"
+        - name: NCCL_DEBUG
+          value: "INFO"
+        resources:
+          requests:
+            nvidia.com/gpu: 1
+            memory: "8Gi"
+            cpu: "4"
+          limits:
+            nvidia.com/gpu: 1
+            memory: "16Gi"
+            cpu: "8"
+        volumeMounts:
+        - name: training-data
+          mountPath: /data
+        - name: model-output
+          mountPath: /output
+        - name: workspace
+          mountPath: /workspace
+      volumes:
+      - name: training-data
+        persistentVolumeClaim:
+          claimName: training-data-pvc
+      - name: model-output
+        persistentVolumeClaim:
+          claimName: model-output-pvc
+      - name: workspace
+        configMap:
+          name: training-scripts
+      nodeSelector:
+        agentaflow.gpu/enabled: "true"
+        agentaflow.gpu/schedulable: "true"
+      tolerations:
+      - key: nvidia.com/gpu
+        operator: Exists
+        effect: NoSchedule
