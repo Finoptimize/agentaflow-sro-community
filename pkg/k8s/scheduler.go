@@ -3,6 +3,8 @@ package k8s
 import (
 	"context"
 	"fmt"
+	"log"
+	"os"
 	"sync"
 	"time"
 
@@ -25,6 +27,7 @@ type KubernetesGPUScheduler struct {
 	mu                sync.RWMutex
 	stopCh            chan struct{}
 	metricsUpdateTime time.Time
+	logger            *log.Logger
 }
 
 // NewKubernetesGPUScheduler creates a new Kubernetes GPU scheduler
@@ -47,6 +50,9 @@ func NewKubernetesGPUScheduler(namespace string, strategy gpu.SchedulingStrategy
 		return nil, fmt.Errorf("failed to create Kubernetes client: %v", err)
 	}
 
+	// Create structured logger with proper formatting
+	logger := log.New(os.Stderr, "[GPU-Scheduler] ", log.LstdFlags|log.Lshortfile)
+
 	return &KubernetesGPUScheduler{
 		clientset:    clientset,
 		gpuScheduler: gpu.NewScheduler(strategy),
@@ -54,6 +60,7 @@ func NewKubernetesGPUScheduler(namespace string, strategy gpu.SchedulingStrategy
 		nodeMap:      make(map[string]*GPUNode),
 		workloadMap:  make(map[string]*GPUWorkload),
 		stopCh:       make(chan struct{}),
+		logger:       logger,
 	}, nil
 }
 
@@ -110,7 +117,7 @@ func (ks *KubernetesGPUScheduler) discoverNodes(ctx context.Context) error {
 
 	for _, node := range nodes.Items {
 		if err := ks.processNode(&node); err != nil {
-			fmt.Printf("Warning: failed to process node %s: %v\n", node.Name, err)
+			ks.logger.Printf("WARNING: Failed to process node %s: %v", node.Name, err)
 			// Continue processing other nodes instead of failing completely
 		}
 	}
@@ -250,7 +257,7 @@ func (ks *KubernetesGPUScheduler) runSchedulingCycle() {
 	// Run the internal scheduler
 	err := ks.gpuScheduler.Schedule()
 	if err != nil {
-		fmt.Printf("Scheduling error: %v\n", err)
+		ks.logger.Printf("ERROR: Scheduling cycle failed: %v", err)
 		return
 	}
 

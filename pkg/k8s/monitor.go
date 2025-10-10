@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log"
 	"os"
 	"os/exec"
 	"strconv"
@@ -14,31 +15,58 @@ import (
 	"k8s.io/client-go/kubernetes"
 )
 
+// GPU monitoring constants
+const (
+	// Memory thresholds for health monitoring
+	MemoryUsageAlertThresholdMB = 8000  // Alert if using more than 8GB
+	DefaultGPUMemoryTotalMB     = 40960 // Default assumption: 40GB GPU (e.g., A100)
+	MemoryUsageWarningPercent   = 90.0  // Warn if memory usage exceeds 90%
+
+	// Temperature thresholds
+	TemperatureWarningC  = 85.0 // Warning temperature in Celsius
+	TemperatureCriticalC = 95.0 // Critical temperature in Celsius
+
+	// Utilization thresholds
+	UtilizationHighPercent      = 95.0 // High utilization threshold
+	UtilizationActivePercent    = 10.0 // Minimum utilization to consider GPU active
+	UtilizationAvailablePercent = 90.0 // Maximum utilization to consider GPU available
+)
+
 // GPUMonitor monitors GPU resources on a single node
 type GPUMonitor struct {
 	clientset kubernetes.Interface
 	nodeName  string
 	namespace string
 	stopCh    chan struct{}
+	logger    *log.Logger
 }
 
 // NewGPUMonitor creates a new GPU monitor for a node
 func NewGPUMonitor(clientset kubernetes.Interface, nodeName, namespace string) *GPUMonitor {
+	// Create structured logger with node context
+	logger := log.New(os.Stderr, fmt.Sprintf("[GPU-Monitor-%s] ", nodeName), log.LstdFlags|log.Lshortfile)
+
 	return &GPUMonitor{
 		clientset: clientset,
 		nodeName:  nodeName,
 		namespace: namespace,
 		stopCh:    make(chan struct{}),
+		logger:    logger,
 	}
 }
 
 // Start begins monitoring GPU resources on this node
 func (gm *GPUMonitor) Start(ctx context.Context) error {
+	gm.logger.Printf("INFO: Starting GPU monitor for node %s", gm.nodeName)
+
 	// Initialize node with GPU information
 	err := gm.initializeNode()
 	if err != nil {
+		gm.logger.Printf("ERROR: Failed to initialize node: %v", err)
 		return fmt.Errorf("failed to initialize node: %v", err)
 	}
+
+	gm.logger.Printf("INFO: Node initialization complete, starting monitoring loop")
 
 	// Start monitoring loop
 	go gm.monitoringLoop(ctx)
@@ -48,6 +76,7 @@ func (gm *GPUMonitor) Start(ctx context.Context) error {
 
 // Stop gracefully stops the GPU monitor
 func (gm *GPUMonitor) Stop() {
+	gm.logger.Printf("INFO: Stopping GPU monitor for node %s", gm.nodeName)
 	close(gm.stopCh)
 }
 
@@ -59,8 +88,11 @@ func (gm *GPUMonitor) initializeNode() error {
 	}
 
 	if len(gpuDevices) == 0 {
+		gm.logger.Printf("WARNING: No GPU devices found on node %s", gm.nodeName)
 		return fmt.Errorf("no GPU devices found on node %s", gm.nodeName)
 	}
+
+	gm.logger.Printf("INFO: Discovered %d GPU device(s) on node %s", len(gpuDevices), gm.nodeName)
 
 	// Update node annotations with GPU information
 	return gm.updateNodeAnnotations(gpuDevices)
@@ -192,13 +224,13 @@ func (gm *GPUMonitor) monitoringLoop(ctx context.Context) {
 func (gm *GPUMonitor) updateGPUStatus() {
 	gpuStatuses, err := gm.getGPUStatuses()
 	if err != nil {
-		fmt.Printf("Failed to get GPU statuses: %v\n", err)
+		gm.logger.Printf("ERROR: Failed to get GPU statuses: %v", err)
 		return
 	}
 
 	err = gm.updateNodeStatus(gpuStatuses)
 	if err != nil {
-		fmt.Printf("Failed to update node status: %v\n", err)
+		gm.logger.Printf("ERROR: Failed to update node status: %v", err)
 	}
 }
 
@@ -243,19 +275,18 @@ func (gm *GPUMonitor) parseGPUStatusOutput(output string) ([]GPUStatus, error) {
 		index := strings.TrimSpace(fields[0])
 		utilizationStr := strings.TrimSpace(fields[1])
 		memoryUsedStr := strings.TrimSpace(fields[2])
-		memoryTotalStr := strings.TrimSpace(fields[3])
+		// Skip fields[3] (memoryTotalStr) - total memory is already tracked in GPUDevice
 		temperatureStr := strings.TrimSpace(fields[4])
 		powerStr := strings.TrimSpace(fields[5])
 
 		utilization, _ := strconv.ParseFloat(utilizationStr, 64)
 		memoryUsed, _ := strconv.ParseInt(memoryUsedStr, 10, 64)
-		_ = memoryTotalStr // Total memory is tracked separately in GPUDevice
 		temperature, _ := strconv.ParseFloat(temperatureStr, 64)
 		power, _ := strconv.ParseFloat(powerStr, 64)
 
 		status := GPUStatus{
 			ID:          fmt.Sprintf("gpu-%s", index),
-			Available:   utilization < 90.0, // Consider GPU available if utilization < 90%
+			Available:   utilization < UtilizationAvailablePercent,
 			MemoryUsed:  memoryUsed,
 			Utilization: utilization,
 			Temperature: temperature,
@@ -263,7 +294,7 @@ func (gm *GPUMonitor) parseGPUStatusOutput(output string) ([]GPUStatus, error) {
 		}
 
 		// Check if GPU is being used by a workload
-		if utilization > 10.0 {
+		if utilization > UtilizationActivePercent {
 			status.CurrentWorkload = gm.findWorkloadUsingGPU(status.ID)
 		}
 
@@ -386,20 +417,20 @@ func (gm *GPUMonitor) CheckGPUHealth() (*GPUHealthReport, error) {
 		healthy := true
 
 		// Check temperature
-		if status.Temperature > 85.0 {
+		if status.Temperature > TemperatureWarningC {
 			report.Issues = append(report.Issues, GPUHealthIssue{
 				GPUID:    status.ID,
 				Severity: "warning",
 				Issue:    "High temperature",
 				Value:    fmt.Sprintf("%.1f°C", status.Temperature),
 			})
-			if status.Temperature > 95.0 {
+			if status.Temperature > TemperatureCriticalC {
 				healthy = false
 			}
 		}
 
 		// Check utilization
-		if status.Utilization > 95.0 {
+		if status.Utilization > UtilizationHighPercent {
 			report.Issues = append(report.Issues, GPUHealthIssue{
 				GPUID:    status.ID,
 				Severity: "info",
@@ -408,10 +439,10 @@ func (gm *GPUMonitor) CheckGPUHealth() (*GPUHealthReport, error) {
 			})
 		}
 
-		// Check memory usage - we need to get total memory from node info
-		if status.MemoryUsed > 8000 { // Alert if using more than 8GB (threshold)
-			memoryUsagePercent := float64(status.MemoryUsed) / 40960.0 * 100 // Assume 40GB GPU for calculation
-			if memoryUsagePercent > 90.0 {
+		// Check memory usage - use configurable thresholds
+		if status.MemoryUsed > MemoryUsageAlertThresholdMB {
+			memoryUsagePercent := float64(status.MemoryUsed) / DefaultGPUMemoryTotalMB * 100
+			if memoryUsagePercent > MemoryUsageWarningPercent {
 				report.Issues = append(report.Issues, GPUHealthIssue{
 					GPUID:    status.ID,
 					Severity: "warning",
