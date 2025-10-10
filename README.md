@@ -12,6 +12,7 @@ Deploy and manage AI infrastructure more efficiently with tools for GPU orchestr
 ### GPU Orchestration & Scheduling
 Tools that optimize GPU utilization across workloads, reducing waste:
 - **Smart Scheduling**: Multiple strategies (least-utilized, best-fit, priority, round-robin)
+- **Kubernetes Integration**: Native Kubernetes GPU scheduling with Custom Resource Definitions
 - **Resource Optimization**: Reduce GPU idle time by up to 40%
 - **Workload Management**: Efficient queuing and distribution across GPU clusters
 - **Real-time Monitoring**: Track utilization, memory, temperature, and power
@@ -111,11 +112,56 @@ monitor.RecordCost(observability.CostEntry{
 summary := monitor.GetCostSummary(startTime, endTime)
 ```
 
+### Kubernetes GPU Scheduling
+
+```bash
+# Deploy the Kubernetes GPU scheduler
+kubectl apply -f examples/k8s/scheduler-deployment.yaml
+
+# Submit a GPU workload
+./k8s-gpu-scheduler --mode=cli submit examples/k8s/pytorch-training-workload.yaml
+
+# Monitor GPU resources across the cluster
+./k8s-gpu-scheduler --mode=cli status
+
+# Watch real-time status updates
+./k8s-gpu-scheduler --mode=cli watch
+
+# Check GPU health across all nodes
+./k8s-gpu-scheduler --mode=cli health
+```
+
+```go
+import "github.com/Finoptimize/agentaflow-sro-community/pkg/k8s"
+
+// Create Kubernetes GPU scheduler
+scheduler, _ := k8s.NewKubernetesGPUScheduler("agentaflow", gpu.StrategyLeastUtilized)
+
+// Start the scheduler
+ctx := context.Background()
+scheduler.Start(ctx)
+
+// Submit GPU workload
+workload := &k8s.GPUWorkload{
+    ObjectMeta: metav1.ObjectMeta{Name: "training-job"},
+    Spec: k8s.GPUWorkloadSpec{
+        Priority:          5,
+        GPUMemoryRequired: 8192, // 8GB
+        GPURequirements: k8s.GPURequirements{
+            GPUCount: 1,
+            ExclusiveAccess: true,
+        },
+    },
+}
+scheduler.SubmitGPUWorkload(workload)
+```
+
 ## 📊 Key Benefits
 
 | Component | Benefit | Impact |
 |-----------|---------|--------|
 | GPU Scheduling | Optimized utilization | Up to 40% reduction in GPU idle time |
+| Kubernetes Integration | Native K8s scheduling | Seamless integration with existing clusters |
 | Request Batching | Improved throughput | 3-5x increase in requests/second |
 | Response Caching | Reduced latency | Up to 50% faster responses |
 | Cost Tracking | Better budgeting | Full visibility into AI infrastructure costs |
@@ -126,10 +172,15 @@ summary := monitor.GetCostSummary(startTime, endTime)
 agentaflow-sro-community/
 ├── pkg/
 │   ├── gpu/           # GPU orchestration and scheduling
+│   ├── k8s/           # Kubernetes GPU scheduling integration
 │   ├── serving/       # Model serving optimization
 │   └── observability/ # Monitoring and debugging
-├── cmd/agentaflow/    # Main CLI application
-└── examples/          # Usage examples
+├── cmd/
+│   ├── agentaflow/    # Main CLI application
+│   └── k8s-gpu-scheduler/  # Kubernetes GPU scheduler
+└── examples/
+    ├── k8s/           # Kubernetes deployment examples
+    └── ...            # Other usage examples
 ```
 
 ## 📖 Documentation
@@ -146,15 +197,18 @@ Topics covered:
 ## 🎓 Use Cases
 
 1. **ML Training Clusters** - Optimize GPU allocation across multiple training jobs
-2. **LLM Inference Services** - Reduce costs with intelligent batching and caching
-3. **Multi-Model Deployments** - Load balance requests across model instances
-4. **Cost Optimization** - Track and minimize AI infrastructure spending
-5. **Performance Debugging** - Identify and resolve bottlenecks
+2. **Kubernetes GPU Workloads** - Native Kubernetes scheduling for AI/ML workloads
+3. **LLM Inference Services** - Reduce costs with intelligent batching and caching
+4. **Multi-Model Deployments** - Load balance requests across model instances
+5. **Cost Optimization** - Track and minimize AI infrastructure spending
+6. **Performance Debugging** - Identify and resolve bottlenecks
 
 ## 🛠️ Requirements
 
 - Go 1.21 or higher
 - No external dependencies for core functionality
+- Kubernetes 1.20+ (for Kubernetes GPU scheduling features)
+- NVIDIA GPU drivers and nvidia-docker (for GPU monitoring)
 
 ## 📝 License
 
@@ -166,7 +220,8 @@ Contributions are welcome! This is a community edition focused on providing acce
 
 ## 🗺️ Roadmap
 
-- Kubernetes integration for GPU scheduling
+- ✅ Kubernetes integration for GPU scheduling
+- Multi-cloud GPU resource support  
 - Real-time GPU metrics collection
 - Prometheus/Grafana integration
 - Web dashboard for monitoring
