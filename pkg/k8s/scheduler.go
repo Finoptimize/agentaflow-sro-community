@@ -397,17 +397,35 @@ func (ks *KubernetesGPUScheduler) GetSchedulingMetrics() *SchedulingMetrics {
 		}
 	}
 
+	// Safely extract metrics with type checks and defaults
+	totalGPUs, ok := utilizationMetrics["total_gpus"].(int)
+	if !ok {
+		totalGPUs = 0
+	}
+	activeGPUs, ok := utilizationMetrics["active_gpus"].(int)
+	if !ok {
+		activeGPUs = 0
+	}
+	averageUtilization, ok := utilizationMetrics["average_utilization"].(float64)
+	if !ok {
+		averageUtilization = 0.0
+	}
+	memoryUtilization, ok := utilizationMetrics["memory_utilization"].(float64)
+	if !ok {
+		memoryUtilization = 0.0
+	}
+
 	return &SchedulingMetrics{
 		TotalNodes:         totalNodes,
 		ActiveNodes:        activeNodes,
-		TotalGPUs:          utilizationMetrics["total_gpus"].(int),
-		AvailableGPUs:      utilizationMetrics["total_gpus"].(int) - utilizationMetrics["active_gpus"].(int),
-		UtilizedGPUs:       utilizationMetrics["active_gpus"].(int),
-		AverageUtilization: utilizationMetrics["average_utilization"].(float64),
+		TotalGPUs:          totalGPUs,
+		AvailableGPUs:      totalGPUs - activeGPUs,
+		UtilizedGPUs:       activeGPUs,
+		AverageUtilization: averageUtilization,
 		PendingWorkloads:   pendingWorkloads,
 		RunningWorkloads:   runningWorkloads,
 		CompletedWorkloads: completedWorkloads,
-		MemoryUtilization:  utilizationMetrics["memory_utilization"].(float64),
+		MemoryUtilization:  memoryUtilization,
 		LastUpdateTime:     ks.metricsUpdateTime,
 	}
 }
