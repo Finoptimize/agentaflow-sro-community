@@ -36,3 +36,4 @@ go.work.sum
 examples/gpu_scheduling
 examples/model_serving
 examples/observability
+PROJECT.md
