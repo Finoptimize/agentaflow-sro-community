@@ -167,7 +167,6 @@ Contributions are welcome! This is a community edition focused on providing acce
 ## 🗺️ Roadmap
 
 - Kubernetes integration for GPU scheduling
-- Multi-cloud GPU resource support
 - Real-time GPU metrics collection
 - Prometheus/Grafana integration
 - Web dashboard for monitoring
@@ -178,6 +177,7 @@ Contributions are welcome! This is a community edition focused on providing acce
 Looking for advanced features for production environments? Our **Enterprise Edition** will include:
 
 - **Multi-cluster Orchestration**: Manage GPU resources across multiple Kubernetes clusters
+- **Multi-cloud GPU resource support**: Support for running in Azure, Google Cloud, Vercel, or DigitalOcean 
 - **Advanced Scheduling Algorithms**: Cost optimization algorithms and priority queues for enterprise workloads  
 - **RBAC and Audit Logs**: Role-based access control and comprehensive audit logging
 - **Enterprise Integrations**: Slack alerts, DataDog monitoring, and other enterprise tools
