@@ -3,7 +3,6 @@ package k8s
 import (
 	"time"
 
-	"github.com/Finoptimize/agentaflow-sro-community/pkg/gpu"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -221,14 +220,6 @@ type GPUNodeList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
 	Items           []GPUNode `json:"items"`
-}
-
-// KubernetesGPUScheduler integrates with Kubernetes for GPU scheduling
-type KubernetesGPUScheduler struct {
-	scheduler   *gpu.Scheduler
-	namespace   string
-	nodeMap     map[string]*GPUNode
-	workloadMap map[string]*GPUWorkload
 }
 
 // SchedulingMetrics contains metrics about GPU scheduling

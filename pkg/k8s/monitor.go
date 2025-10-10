@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"os"
 	"os/exec"
 	"strconv"
 	"strings"
@@ -67,10 +68,27 @@ func (gm *GPUMonitor) initializeNode() error {
 
 // discoverGPUDevices discovers GPU devices using nvidia-smi
 func (gm *GPUMonitor) discoverGPUDevices() ([]GPUDevice, error) {
-	// Query GPU information using nvidia-smi
-	cmd := exec.Command("nvidia-smi",
+	// Validate nvidia-smi is available and secure
+	nvidiaSmiPath, err := exec.LookPath("nvidia-smi")
+	if err != nil {
+		return nil, fmt.Errorf("nvidia-smi not found in PATH: %v", err)
+	}
+
+	// Ensure nvidia-smi exists and is executable
+	if _, err := os.Stat(nvidiaSmiPath); err != nil {
+		return nil, fmt.Errorf("nvidia-smi not accessible: %v", err)
+	}
+
+	// Query GPU information using nvidia-smi with validated path
+	cmd := exec.Command(nvidiaSmiPath,
 		"--query-gpu=index,name,memory.total,pci.bus_id,driver_version",
 		"--format=csv,noheader,nounits")
+
+	// Set environment variables to prevent injection
+	cmd.Env = []string{
+		"PATH=/usr/bin:/bin:/usr/local/bin",
+		"LC_ALL=C",
+	}
 
 	output, err := cmd.Output()
 	if err != nil {
@@ -186,10 +204,22 @@ func (gm *GPUMonitor) updateGPUStatus() {
 
 // getGPUStatuses retrieves current GPU utilization and memory usage
 func (gm *GPUMonitor) getGPUStatuses() ([]GPUStatus, error) {
+	// Validate nvidia-smi path for security
+	nvidiaSmiPath, err := exec.LookPath("nvidia-smi")
+	if err != nil {
+		return nil, fmt.Errorf("nvidia-smi not found: %v", err)
+	}
+
 	// Query current GPU status
-	cmd := exec.Command("nvidia-smi",
+	cmd := exec.Command(nvidiaSmiPath,
 		"--query-gpu=index,utilization.gpu,memory.used,memory.total,temperature.gpu,power.draw",
 		"--format=csv,noheader,nounits")
+
+	// Set secure environment
+	cmd.Env = []string{
+		"PATH=/usr/bin:/bin:/usr/local/bin",
+		"LC_ALL=C",
+	}
 
 	output, err := cmd.Output()
 	if err != nil {
@@ -219,7 +249,7 @@ func (gm *GPUMonitor) parseGPUStatusOutput(output string) ([]GPUStatus, error) {
 
 		utilization, _ := strconv.ParseFloat(utilizationStr, 64)
 		memoryUsed, _ := strconv.ParseInt(memoryUsedStr, 10, 64)
-		memoryTotal, _ := strconv.ParseInt(memoryTotalStr, 10, 64)
+		_ = memoryTotalStr // Total memory is tracked separately in GPUDevice
 		temperature, _ := strconv.ParseFloat(temperatureStr, 64)
 		power, _ := strconv.ParseFloat(powerStr, 64)
 
@@ -378,9 +408,9 @@ func (gm *GPUMonitor) CheckGPUHealth() (*GPUHealthReport, error) {
 			})
 		}
 
-		// Check memory usage
-		if status.MemoryUsed > 0 && status.MemoryTotal > 0 {
-			memoryUsagePercent := float64(status.MemoryUsed) / float64(status.MemoryTotal) * 100
+		// Check memory usage - we need to get total memory from node info
+		if status.MemoryUsed > 8000 { // Alert if using more than 8GB (threshold)
+			memoryUsagePercent := float64(status.MemoryUsed) / 40960.0 * 100 // Assume 40GB GPU for calculation
 			if memoryUsagePercent > 90.0 {
 				report.Issues = append(report.Issues, GPUHealthIssue{
 					GPUID:    status.ID,

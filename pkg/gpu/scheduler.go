@@ -2,38 +2,80 @@ package gpu
 
 import (
 	"fmt"
+	"sort"
 	"sync"
 	"time"
 )
 
-// Scheduler manages GPU resources and schedules workloads
-type Scheduler struct {
-	gpus            map[string]*GPU
-	workloadQueue   []*Workload
-	strategy        SchedulingStrategy
-	mu              sync.RWMutex
-	utilizationGoal float64
+// SchedulerConfig holds configuration for the GPU scheduler
+type SchedulerConfig struct {
+	UtilizationGoal float64
 }
 
-// NewScheduler creates a new GPU scheduler
+// DefaultSchedulerConfig returns default configuration
+func DefaultSchedulerConfig() *SchedulerConfig {
+	return &SchedulerConfig{
+		UtilizationGoal: 80.0,
+	}
+}
+
+// Scheduler manages GPU resources and schedules workloads
+type Scheduler struct {
+	gpus          map[string]*GPU
+	workloadQueue []*Workload
+	strategy      SchedulingStrategy
+	config        *SchedulerConfig
+	mu            sync.RWMutex
+}
+
+// NewScheduler creates a new GPU scheduler with default config
 func NewScheduler(strategy SchedulingStrategy) *Scheduler {
+	return NewSchedulerWithConfig(strategy, DefaultSchedulerConfig())
+}
+
+// NewSchedulerWithConfig creates a new GPU scheduler with custom config
+func NewSchedulerWithConfig(strategy SchedulingStrategy, config *SchedulerConfig) *Scheduler {
+	if config == nil {
+		config = DefaultSchedulerConfig()
+	}
 	return &Scheduler{
-		gpus:            make(map[string]*GPU),
-		workloadQueue:   make([]*Workload, 0),
-		strategy:        strategy,
-		utilizationGoal: 80.0, // Target 80% utilization
+		gpus:          make(map[string]*GPU),
+		workloadQueue: make([]*Workload, 0),
+		strategy:      strategy,
+		config:        config,
 	}
 }
 
 // RegisterGPU adds a GPU to the scheduler
-func (s *Scheduler) RegisterGPU(gpu *GPU) {
+func (s *Scheduler) RegisterGPU(gpu *GPU) error {
+	if gpu == nil {
+		return fmt.Errorf("GPU cannot be nil")
+	}
+	if gpu.ID == "" {
+		return fmt.Errorf("GPU ID cannot be empty")
+	}
+	if gpu.MemoryTotal == 0 {
+		return fmt.Errorf("GPU memory total must be greater than 0")
+	}
+
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.gpus[gpu.ID] = gpu
+	return nil
 }
 
 // SubmitWorkload adds a new workload to the queue
 func (s *Scheduler) SubmitWorkload(workload *Workload) error {
+	if workload == nil {
+		return fmt.Errorf("workload cannot be nil")
+	}
+	if workload.ID == "" {
+		return fmt.Errorf("workload ID cannot be empty")
+	}
+	if workload.MemoryRequired == 0 {
+		return fmt.Errorf("workload memory requirement must be greater than 0")
+	}
+
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -103,14 +145,10 @@ func (s *Scheduler) scheduleBestFit() error {
 
 // schedulePriority schedules based on workload priority
 func (s *Scheduler) schedulePriority() error {
-	// Sort by priority (higher priority first)
-	for i := 0; i < len(s.workloadQueue)-1; i++ {
-		for j := i + 1; j < len(s.workloadQueue); j++ {
-			if s.workloadQueue[i].Priority < s.workloadQueue[j].Priority {
-				s.workloadQueue[i], s.workloadQueue[j] = s.workloadQueue[j], s.workloadQueue[i]
-			}
-		}
-	}
+	// Sort by priority (higher priority first) using efficient sort
+	sort.Slice(s.workloadQueue, func(i, j int) bool {
+		return s.workloadQueue[i].Priority > s.workloadQueue[j].Priority
+	})
 
 	return s.scheduleLeastUtilized()
 }
@@ -232,15 +270,20 @@ func (s *Scheduler) GetUtilizationMetrics() map[string]interface{} {
 		avgUtilization = totalUtilization / float64(totalGPUs)
 	}
 
+	memoryUtilization := 0.0
+	if totalMemoryAvailable > 0 {
+		memoryUtilization = float64(totalMemoryUsed) / float64(totalMemoryAvailable) * 100
+	}
+
 	return map[string]interface{}{
 		"total_gpus":          totalGPUs,
 		"active_gpus":         activeGPUs,
 		"average_utilization": avgUtilization,
 		"memory_used_mb":      totalMemoryUsed,
 		"memory_available_mb": totalMemoryAvailable,
-		"memory_utilization":  float64(totalMemoryUsed) / float64(totalMemoryAvailable) * 100,
+		"memory_utilization":  memoryUtilization,
 		"pending_workloads":   len(s.workloadQueue),
-		"utilization_goal":    s.utilizationGoal,
+		"utilization_goal":    s.config.UtilizationGoal,
 	}
 }
 

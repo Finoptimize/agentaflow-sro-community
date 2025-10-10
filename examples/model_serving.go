@@ -7,8 +7,8 @@ import (
 	"github.com/Finoptimize/agentaflow-sro-community/pkg/serving"
 )
 
-func main() {
-	fmt.Println("=== Model Serving Optimization Example ===\n")
+func runModelServingExample() {
+	fmt.Println("=== Model Serving Example ===")
 
 	// Create serving manager with custom configuration
 	fmt.Println("1. Creating serving manager with batching and caching...")

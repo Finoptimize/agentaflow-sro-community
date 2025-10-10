@@ -7,8 +7,8 @@ import (
 	"github.com/Finoptimize/agentaflow-sro-community/pkg/gpu"
 )
 
-func main() {
-	fmt.Println("=== GPU Scheduling Example ===\n")
+func runGPUSchedulingExample() {
+	fmt.Println("=== GPU Scheduling Example ===")
 
 	// Create scheduler with different strategies
 	fmt.Println("1. Creating scheduler with Least Utilized strategy...")

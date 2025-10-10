@@ -8,6 +8,7 @@ import (
 
 	"github.com/Finoptimize/agentaflow-sro-community/pkg/gpu"
 	v1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
@@ -96,34 +97,38 @@ func (ks *KubernetesGPUScheduler) nodeDiscoveryLoop(ctx context.Context) {
 }
 
 // discoverNodes finds GPU-enabled nodes and registers them
-func (ks *KubernetesGPUScheduler) discoverNodes(ctx context.Context) {
+func (ks *KubernetesGPUScheduler) discoverNodes(ctx context.Context) error {
 	nodes, err := ks.clientset.CoreV1().Nodes().List(ctx, metav1.ListOptions{
 		LabelSelector: "agentaflow.gpu/enabled=true",
 	})
 	if err != nil {
-		fmt.Printf("Failed to list nodes: %v\n", err)
-		return
+		return fmt.Errorf("failed to list GPU-enabled nodes: %w", err)
 	}
 
 	ks.mu.Lock()
 	defer ks.mu.Unlock()
 
 	for _, node := range nodes.Items {
-		ks.processNode(&node)
+		if err := ks.processNode(&node); err != nil {
+			fmt.Printf("Warning: failed to process node %s: %v\n", node.Name, err)
+			// Continue processing other nodes instead of failing completely
+		}
 	}
+
+	return nil
 }
 
 // processNode processes a Kubernetes node and extracts GPU information
-func (ks *KubernetesGPUScheduler) processNode(node *v1.Node) {
+func (ks *KubernetesGPUScheduler) processNode(node *v1.Node) error {
 	// Look for GPU annotations
-	gpuCountStr, hasGPUs := node.Annotations["agentaflow.gpu/count"]
+	_, hasGPUs := node.Annotations["agentaflow.gpu/count"]
 	if !hasGPUs {
-		return
+		return fmt.Errorf("node %s missing GPU count annotation", node.Name)
 	}
 
 	gpuDevicesStr, hasDevices := node.Annotations["agentaflow.gpu/devices"]
 	if !hasDevices {
-		return
+		return fmt.Errorf("node %s missing GPU devices annotation", node.Name)
 	}
 
 	// Parse GPU information from annotations
@@ -158,8 +163,12 @@ func (ks *KubernetesGPUScheduler) processNode(node *v1.Node) {
 			MemoryTotal: uint64(device.MemoryTotal),
 			Available:   true,
 		}
-		ks.gpuScheduler.RegisterGPU(gpuResource)
+		if err := ks.gpuScheduler.RegisterGPU(gpuResource); err != nil {
+			return fmt.Errorf("failed to register GPU %s: %w", gpuResource.ID, err)
+		}
 	}
+
+	return nil
 }
 
 // parseGPUDevices parses GPU device information from node annotations
@@ -184,8 +193,8 @@ func (ks *KubernetesGPUScheduler) SubmitGPUWorkload(workload *GPUWorkload) error
 
 	// Convert to internal workload format
 	internalWorkload := &gpu.Workload{
-		ID:             workload.Name,
-		Name:           workload.Name,
+		ID:             workload.ObjectMeta.Name,
+		Name:           workload.ObjectMeta.Name,
 		Priority:       int(workload.Spec.Priority),
 		MemoryRequired: uint64(workload.Spec.GPUMemoryRequired),
 	}
@@ -212,7 +221,7 @@ func (ks *KubernetesGPUScheduler) SubmitGPUWorkload(workload *GPUWorkload) error
 		},
 	}
 
-	ks.workloadMap[workload.Name] = workload
+	ks.workloadMap[workload.ObjectMeta.Name] = workload
 	return nil
 }
 
@@ -297,10 +306,10 @@ func (ks *KubernetesGPUScheduler) extractNodeName(gpuID string) string {
 func (ks *KubernetesGPUScheduler) createWorkloadPod(workload *GPUWorkload) error {
 	pod := &v1.Pod{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      workload.Name,
+			Name:      workload.ObjectMeta.Name,
 			Namespace: ks.namespace,
 			Labels: map[string]string{
-				"agentaflow.gpu/workload": workload.Name,
+				"agentaflow.gpu/workload": workload.ObjectMeta.Name,
 				"agentaflow.gpu/managed":  "true",
 			},
 			Annotations: map[string]string{
@@ -322,7 +331,7 @@ func (ks *KubernetesGPUScheduler) createWorkloadPod(workload *GPUWorkload) error
 		if pod.Spec.Containers[i].Resources.Limits == nil {
 			pod.Spec.Containers[i].Resources.Limits = make(v1.ResourceList)
 		}
-		pod.Spec.Containers[i].Resources.Limits["nvidia.com/gpu"] = *metav1.NewQuantity(int64(workload.Spec.GPURequirements.GPUCount), metav1.DecimalSI)
+		pod.Spec.Containers[i].Resources.Limits["nvidia.com/gpu"] = *resource.NewQuantity(int64(workload.Spec.GPURequirements.GPUCount), resource.DecimalSI)
 	}
 
 	_, err := ks.clientset.CoreV1().Pods(ks.namespace).Create(context.TODO(), pod, metav1.CreateOptions{})
@@ -505,4 +514,9 @@ func (ks *KubernetesGPUScheduler) SetSchedulingStrategy(strategy gpu.SchedulingS
 	}
 
 	ks.gpuScheduler = newScheduler
+}
+
+// GetClientset returns the Kubernetes clientset
+func (ks *KubernetesGPUScheduler) GetClientset() kubernetes.Interface {
+	return ks.clientset
 }
