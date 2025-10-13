@@ -225,7 +225,6 @@ Contributions are welcome! This is a community edition focused on providing acce
 ## 🗺️ Roadmap
 
 - ✅ Kubernetes integration for GPU scheduling
-- Multi-cloud GPU resource support  
 - Real-time GPU metrics collection
 - Prometheus/Grafana integration
 - Web dashboard for monitoring
@@ -242,6 +241,7 @@ Looking for advanced features for production environments? Our **Enterprise Edit
 - **Enterprise Integrations**: Slack alerts, DataDog monitoring, and other enterprise tools
 - **SLA Support**: Guaranteed service levels with dedicated support
 - **Usage-based Billing Features**: Advanced cost tracking and billing automation
+- **Data Center Edition**: Run on bare metal in the data center
 
 *Contact us for early access and enterprise pricing.*
 
