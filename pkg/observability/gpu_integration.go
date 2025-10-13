@@ -2,6 +2,7 @@ package observability
 
 import (
 	"fmt"
+	"os"
 	"strings"
 	"sync"
 	"time"
@@ -383,10 +384,11 @@ func (gmi *GPUMetricsIntegration) recordGPUMetrics(metrics gpu.GPUMetrics) {
 
 // exportGPUMetricsToPrometheus exports GPU metrics to Prometheus
 func (gmi *GPUMetricsIntegration) exportGPUMetricsToPrometheus(metrics gpu.GPUMetrics, powerEfficiency float64) {
+	nodeName, _ := os.Hostname() // Get the hostname as node name
 	labels := map[string]string{
 		"gpu_id":   metrics.GPUID,
 		"gpu_name": metrics.Name,
-		"node":     "localhost", // TODO: Get actual node name
+		"node":     nodeName,
 	}
 
 	// Core GPU metrics

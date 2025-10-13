@@ -37,3 +37,4 @@ examples/gpu_scheduling
 examples/model_serving
 examples/observability
 PROJECT.md
+agentaflow-sro-community.code-workspace
