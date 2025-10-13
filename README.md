@@ -149,6 +149,44 @@ fmt.Printf("GPU efficiency: %.1f%% idle time, %.3f power efficiency\n",
     efficiency["idle_time_percent"], efficiency["avg_power_efficiency"])
 ```
 
+### Prometheus/Grafana Integration
+
+```go
+import "github.com/Finoptimize/agentaflow-sro-community/pkg/observability"
+
+// Create Prometheus exporter
+prometheusConfig := observability.PrometheusConfig{
+    MetricsPrefix: "agentaflow",
+    EnabledMetrics: map[string]bool{
+        "gpu_metrics":        true,
+        "scheduling_metrics": true,
+        "serving_metrics":    true,
+        "cost_metrics":      true,
+        "system_metrics":    true,
+    },
+}
+exporter := observability.NewPrometheusExporter(monitoringService, prometheusConfig)
+
+// Register GPU metrics for export
+exporter.RegisterGPUMetrics()
+exporter.RegisterCostMetrics()
+exporter.RegisterSchedulingMetrics()
+
+// Start metrics server for Prometheus scraping
+go exporter.StartMetricsServer(8080)
+
+// Enable GPU integration with Prometheus export
+integration.SetPrometheusExporter(exporter)
+integration.EnablePrometheusExport(true)
+
+// Metrics available at http://localhost:8080/metrics
+// - agentaflow_gpu_utilization_percent
+// - agentaflow_gpu_temperature_celsius  
+// - agentaflow_gpu_memory_used_bytes
+// - agentaflow_cost_total_dollars
+// - agentaflow_workloads_pending
+```
+
 ### Advanced GPU Analytics
 
 ```go
@@ -240,7 +278,7 @@ scheduler.SubmitGPUWorkload(workload)
 
 ## 🏗️ Architecture
 
-```
+```bash
 agentaflow-sro-community/
 ├── pkg/
 │   ├── gpu/           # GPU orchestration and scheduling
@@ -252,8 +290,46 @@ agentaflow-sro-community/
 │   └── k8s-gpu-scheduler/  # Kubernetes GPU scheduler
 └── examples/
     ├── k8s/           # Kubernetes deployment examples
-    └── ...            # Other usage examples
+    ├── monitoring/    # Grafana dashboards and configs
+    └── demo/          # Demo applications
 ```
+
+## 🔧 Monitoring & Observability
+
+AgentaFlow provides comprehensive monitoring through Prometheus/Grafana integration:
+
+### Quick Start Monitoring
+
+Run the Prometheus/Grafana demo:
+
+```bash
+cd examples/demo/prometheus-grafana
+go run main.go
+```
+
+Access monitoring:
+- **Prometheus Metrics**: http://localhost:8080/metrics
+- **Grafana Dashboard**: Deploy with `kubectl apply -f examples/k8s/monitoring/`
+
+### Available Metrics
+
+- **GPU Metrics**: Utilization, temperature, memory, power consumption
+- **Cost Tracking**: Real-time cost calculation with cloud pricing integration
+- **Workload Metrics**: Job scheduling, queue depth, completion rates
+- **System Health**: Component status, alerts, and performance indicators
+
+### Kubernetes Deployment
+
+```bash
+# Deploy monitoring stack
+kubectl apply -f examples/k8s/monitoring/prometheus.yaml
+kubectl apply -f examples/k8s/monitoring/grafana.yaml
+
+# Access Grafana (admin/agentaflow123)
+kubectl port-forward svc/grafana-service 3000:3000 -n agentaflow-monitoring
+```
+
+For complete monitoring setup, see [examples/demo/PROMETHEUS_GRAFANA_DEMO.md](examples/demo/PROMETHEUS_GRAFANA_DEMO.md)
 
 ## 📖 Documentation
 
