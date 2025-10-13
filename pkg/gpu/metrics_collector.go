@@ -14,23 +14,23 @@ import (
 
 // GPUMetrics represents detailed metrics for a single GPU
 type GPUMetrics struct {
-	GPUID                string    `json:"gpu_id"`
-	Name                 string    `json:"name"`
-	UtilizationGPU       float64   `json:"utilization_gpu"`       // GPU utilization percentage
-	UtilizationMemory    float64   `json:"utilization_memory"`    // Memory utilization percentage
-	MemoryTotal          uint64    `json:"memory_total"`          // Total memory in MB
-	MemoryUsed           uint64    `json:"memory_used"`           // Used memory in MB
-	MemoryFree           uint64    `json:"memory_free"`           // Free memory in MB
-	Temperature          float64   `json:"temperature"`           // Temperature in Celsius
-	PowerDraw            float64   `json:"power_draw"`            // Power draw in Watts
-	PowerLimit           float64   `json:"power_limit"`           // Power limit in Watts
-	FanSpeed             float64   `json:"fan_speed"`             // Fan speed percentage
-	ClockGraphics        uint64    `json:"clock_graphics"`        // Graphics clock in MHz
-	ClockMemory          uint64    `json:"clock_memory"`          // Memory clock in MHz
-	ProcessCount         int       `json:"process_count"`         // Number of running processes
-	EncoderUtilization   float64   `json:"encoder_utilization"`   // Encoder utilization percentage
-	DecoderUtilization   float64   `json:"decoder_utilization"`   // Decoder utilization percentage
-	Timestamp            time.Time `json:"timestamp"`
+	GPUID              string    `json:"gpu_id"`
+	Name               string    `json:"name"`
+	UtilizationGPU     float64   `json:"utilization_gpu"`     // GPU utilization percentage
+	UtilizationMemory  float64   `json:"utilization_memory"`  // Memory utilization percentage
+	MemoryTotal        uint64    `json:"memory_total"`        // Total memory in MB
+	MemoryUsed         uint64    `json:"memory_used"`         // Used memory in MB
+	MemoryFree         uint64    `json:"memory_free"`         // Free memory in MB
+	Temperature        float64   `json:"temperature"`         // Temperature in Celsius
+	PowerDraw          float64   `json:"power_draw"`          // Power draw in Watts
+	PowerLimit         float64   `json:"power_limit"`         // Power limit in Watts
+	FanSpeed           float64   `json:"fan_speed"`           // Fan speed percentage
+	ClockGraphics      uint64    `json:"clock_graphics"`      // Graphics clock in MHz
+	ClockMemory        uint64    `json:"clock_memory"`        // Memory clock in MHz
+	ProcessCount       int       `json:"process_count"`       // Number of running processes
+	EncoderUtilization float64   `json:"encoder_utilization"` // Encoder utilization percentage
+	DecoderUtilization float64   `json:"decoder_utilization"` // Decoder utilization percentage
+	Timestamp          time.Time `json:"timestamp"`
 }
 
 // GPUProcess represents a process running on the GPU
@@ -43,15 +43,15 @@ type GPUProcess struct {
 
 // MetricsCollector collects real-time GPU metrics
 type MetricsCollector struct {
-	gpuIDs         []string
+	gpuIDs          []string
 	collectInterval time.Duration
 	metrics         map[string][]GPUMetrics // GPU ID -> historical metrics
 	processes       map[string][]GPUProcess // GPU ID -> running processes
-	mu             sync.RWMutex
-	ctx            context.Context
-	cancel         context.CancelFunc
-	running        bool
-	callbacks      []func(GPUMetrics)
+	mu              sync.RWMutex
+	ctx             context.Context
+	cancel          context.CancelFunc
+	running         bool
+	callbacks       []func(GPUMetrics)
 }
 
 // NewMetricsCollector creates a new GPU metrics collector
@@ -59,11 +59,11 @@ func NewMetricsCollector(collectInterval time.Duration) *MetricsCollector {
 	ctx, cancel := context.WithCancel(context.Background())
 	return &MetricsCollector{
 		collectInterval: collectInterval,
-		metrics:        make(map[string][]GPUMetrics),
-		processes:      make(map[string][]GPUProcess),
-		ctx:            ctx,
-		cancel:         cancel,
-		callbacks:      make([]func(GPUMetrics), 0),
+		metrics:         make(map[string][]GPUMetrics),
+		processes:       make(map[string][]GPUProcess),
+		ctx:             ctx,
+		cancel:          cancel,
+		callbacks:       make([]func(GPUMetrics), 0),
 	}
 }
 
@@ -189,7 +189,7 @@ func (mc *MetricsCollector) collectMetrics() {
 		}
 
 		mc.mu.Lock()
-		
+
 		// Store metrics (keep last 1000 entries per GPU)
 		if _, exists := mc.metrics[gpuID]; !exists {
 			mc.metrics[gpuID] = make([]GPUMetrics, 0)
@@ -238,11 +238,11 @@ func (mc *MetricsCollector) discoverGPUs() ([]string, error) {
 // collectGPUMetrics collects detailed metrics for a specific GPU
 func (mc *MetricsCollector) collectGPUMetrics(gpuID string) (GPUMetrics, error) {
 	// Use nvidia-smi to collect comprehensive metrics
-	cmd := exec.Command("nvidia-smi", 
+	cmd := exec.Command("nvidia-smi",
 		fmt.Sprintf("--id=%s", gpuID),
 		"--query-gpu=name,utilization.gpu,utilization.memory,memory.total,memory.used,memory.free,temperature.gpu,power.draw,power.limit,fan.speed,clocks.current.graphics,clocks.current.memory,encoder.stats.sessionCount,decoder.stats.sessionCount",
 		"--format=csv,noheader,nounits")
-	
+
 	output, err := cmd.Output()
 	if err != nil {
 		return GPUMetrics{}, fmt.Errorf("failed to collect GPU metrics: %w", err)
@@ -250,7 +250,7 @@ func (mc *MetricsCollector) collectGPUMetrics(gpuID string) (GPUMetrics, error) 
 
 	line := strings.TrimSpace(string(output))
 	fields := strings.Split(line, ", ")
-	
+
 	if len(fields) < 14 {
 		return GPUMetrics{}, fmt.Errorf("unexpected nvidia-smi output format")
 	}
@@ -263,55 +263,55 @@ func (mc *MetricsCollector) collectGPUMetrics(gpuID string) (GPUMetrics, error) 
 
 	// Parse each field with error handling
 	metrics.Name = strings.TrimSpace(fields[0])
-	
+
 	if val, err := parseFloat(fields[1]); err == nil {
 		metrics.UtilizationGPU = val
 	}
-	
+
 	if val, err := parseFloat(fields[2]); err == nil {
 		metrics.UtilizationMemory = val
 	}
-	
+
 	if val, err := parseUint64(fields[3]); err == nil {
 		metrics.MemoryTotal = val
 	}
-	
+
 	if val, err := parseUint64(fields[4]); err == nil {
 		metrics.MemoryUsed = val
 	}
-	
+
 	if val, err := parseUint64(fields[5]); err == nil {
 		metrics.MemoryFree = val
 	}
-	
+
 	if val, err := parseFloat(fields[6]); err == nil {
 		metrics.Temperature = val
 	}
-	
+
 	if val, err := parseFloat(fields[7]); err == nil {
 		metrics.PowerDraw = val
 	}
-	
+
 	if val, err := parseFloat(fields[8]); err == nil {
 		metrics.PowerLimit = val
 	}
-	
+
 	if val, err := parseFloat(fields[9]); err == nil {
 		metrics.FanSpeed = val
 	}
-	
+
 	if val, err := parseUint64(fields[10]); err == nil {
 		metrics.ClockGraphics = val
 	}
-	
+
 	if val, err := parseUint64(fields[11]); err == nil {
 		metrics.ClockMemory = val
 	}
-	
+
 	if val, err := parseFloat(fields[12]); err == nil {
 		metrics.EncoderUtilization = val
 	}
-	
+
 	if val, err := parseFloat(fields[13]); err == nil {
 		metrics.DecoderUtilization = val
 	}
@@ -321,11 +321,11 @@ func (mc *MetricsCollector) collectGPUMetrics(gpuID string) (GPUMetrics, error) 
 
 // collectGPUProcesses collects information about processes running on a GPU
 func (mc *MetricsCollector) collectGPUProcesses(gpuID string) ([]GPUProcess, error) {
-	cmd := exec.Command("nvidia-smi", 
+	cmd := exec.Command("nvidia-smi",
 		fmt.Sprintf("--id=%s", gpuID),
 		"--query-compute-apps=pid,name,used_memory",
 		"--format=csv,noheader,nounits")
-	
+
 	output, err := cmd.Output()
 	if err != nil {
 		return []GPUProcess{}, fmt.Errorf("failed to collect GPU processes: %w", err)
@@ -344,29 +344,29 @@ func (mc *MetricsCollector) collectGPUProcesses(gpuID string) ([]GPUProcess, err
 			process := GPUProcess{
 				Type: "C", // Compute process
 			}
-			
+
 			if pid, err := strconv.Atoi(strings.TrimSpace(fields[0])); err == nil {
 				process.PID = pid
 			}
-			
+
 			process.ProcessName = strings.TrimSpace(fields[1])
-			
+
 			if memStr := strings.TrimSpace(fields[2]); memStr != "[Not Supported]" {
 				if mem, err := parseUint64(memStr); err == nil {
 					process.MemoryUsed = mem
 				}
 			}
-			
+
 			processes = append(processes, process)
 		}
 	}
 
 	// Also collect graphics processes
-	cmd = exec.Command("nvidia-smi", 
+	cmd = exec.Command("nvidia-smi",
 		fmt.Sprintf("--id=%s", gpuID),
 		"--query-graphics-apps=pid,name,used_memory",
 		"--format=csv,noheader,nounits")
-	
+
 	output, err = cmd.Output()
 	if err == nil {
 		scanner = bufio.NewScanner(strings.NewReader(string(output)))
@@ -381,19 +381,19 @@ func (mc *MetricsCollector) collectGPUProcesses(gpuID string) ([]GPUProcess, err
 				process := GPUProcess{
 					Type: "G", // Graphics process
 				}
-				
+
 				if pid, err := strconv.Atoi(strings.TrimSpace(fields[0])); err == nil {
 					process.PID = pid
 				}
-				
+
 				process.ProcessName = strings.TrimSpace(fields[1])
-				
+
 				if memStr := strings.TrimSpace(fields[2]); memStr != "[Not Supported]" {
 					if mem, err := parseUint64(memStr); err == nil {
 						process.MemoryUsed = mem
 					}
 				}
-				
+
 				processes = append(processes, process)
 			}
 		}
@@ -426,16 +426,16 @@ func (mc *MetricsCollector) GetGPUEfficiencyMetrics(gpuID string, duration time.
 	totalPowerEfficiency := 0.0
 	maxTemp := 0.0
 	minTemp := 1000.0
-	
+
 	for _, metric := range history {
 		totalUtilization += metric.UtilizationGPU
 		totalMemoryUtil += metric.UtilizationMemory
-		
+
 		// Power efficiency: utilization per watt
 		if metric.PowerDraw > 0 {
 			totalPowerEfficiency += metric.UtilizationGPU / metric.PowerDraw
 		}
-		
+
 		if metric.Temperature > maxTemp {
 			maxTemp = metric.Temperature
 		}
@@ -453,15 +453,15 @@ func (mc *MetricsCollector) GetGPUEfficiencyMetrics(gpuID string, duration time.
 	idleTime := 100.0 - avgUtilization
 
 	return map[string]interface{}{
-		"gpu_id":                gpuID,
-		"avg_utilization":       avgUtilization,
-		"avg_memory_util":       avgMemoryUtil,
-		"idle_time_percent":     idleTime,
-		"avg_power_efficiency":  avgPowerEfficiency, // Utilization per watt
-		"max_temperature":       maxTemp,
-		"min_temperature":       minTemp,
-		"sample_count":          len(history),
-		"duration_minutes":      duration.Minutes(),
+		"gpu_id":               gpuID,
+		"avg_utilization":      avgUtilization,
+		"avg_memory_util":      avgMemoryUtil,
+		"idle_time_percent":    idleTime,
+		"avg_power_efficiency": avgPowerEfficiency, // Utilization per watt
+		"max_temperature":      maxTemp,
+		"min_temperature":      minTemp,
+		"sample_count":         len(history),
+		"duration_minutes":     duration.Minutes(),
 	}
 }
 
@@ -503,11 +503,11 @@ func (mc *MetricsCollector) GetSystemOverview() map[string]interface{} {
 	for _, gpuID := range mc.gpuIDs {
 		if metricsHistory, exists := mc.metrics[gpuID]; exists && len(metricsHistory) > 0 {
 			latest := metricsHistory[len(metricsHistory)-1]
-			
+
 			if latest.UtilizationGPU > 5.0 { // Consider >5% as active
 				activeGPUs++
 			}
-			
+
 			totalUtilization += latest.UtilizationGPU
 			totalMemoryUsed += latest.MemoryUsed
 			totalMemoryAvailable += latest.MemoryTotal
@@ -529,14 +529,14 @@ func (mc *MetricsCollector) GetSystemOverview() map[string]interface{} {
 	}
 
 	return map[string]interface{}{
-		"total_gpus":           totalGPUs,
-		"active_gpus":          activeGPUs,
-		"avg_utilization":      avgUtilization,
-		"memory_used_mb":       totalMemoryUsed,
-		"memory_available_mb":  totalMemoryAvailable,
-		"memory_utilization":   memoryUtilization,
-		"total_processes":      totalProcesses,
-		"collection_interval":  mc.collectInterval.String(),
-		"timestamp":            time.Now(),
+		"total_gpus":          totalGPUs,
+		"active_gpus":         activeGPUs,
+		"avg_utilization":     avgUtilization,
+		"memory_used_mb":      totalMemoryUsed,
+		"memory_available_mb": totalMemoryAvailable,
+		"memory_utilization":  memoryUtilization,
+		"total_processes":     totalProcesses,
+		"collection_interval": mc.collectInterval.String(),
+		"timestamp":           time.Now(),
 	}
 }

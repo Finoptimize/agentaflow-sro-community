@@ -14,16 +14,16 @@ type GPUMetricsIntegration struct {
 	monitoringService *MonitoringService
 	metricsCollector  *gpu.MetricsCollector
 	mu                sync.RWMutex
-	
+
 	// Configuration
-	alertThresholds   GPUAlertThresholds
-	metricsEnabled    bool
-	eventsEnabled     bool
-	costsEnabled      bool
-	
+	alertThresholds GPUAlertThresholds
+	metricsEnabled  bool
+	eventsEnabled   bool
+	costsEnabled    bool
+
 	// State tracking
-	lastKnownState    map[string]gpu.GPUMetrics
-	alertHistory      map[string][]gpu.GPUAlert
+	lastKnownState map[string]gpu.GPUMetrics
+	alertHistory   map[string][]gpu.GPUAlert
 }
 
 // GPUAlertThresholds defines thresholds for GPU monitoring alerts
@@ -121,13 +121,13 @@ func (gmi *GPUMetricsIntegration) processGPUMetrics(metrics gpu.GPUMetrics) {
 		for _, alert := range alerts {
 			gmi.recordAlertEvent(alert, metrics)
 		}
-		
+
 		// Store alerts in history
 		if _, exists := gmi.alertHistory[gpuID]; !exists {
 			gmi.alertHistory[gpuID] = make([]gpu.GPUAlert, 0)
 		}
 		gmi.alertHistory[gpuID] = append(gmi.alertHistory[gpuID], alerts...)
-		
+
 		// Keep only last 100 alerts per GPU
 		if len(gmi.alertHistory[gpuID]) > 100 {
 			gmi.alertHistory[gpuID] = gmi.alertHistory[gpuID][len(gmi.alertHistory[gpuID])-100:]
@@ -146,7 +146,7 @@ func (gmi *GPUMetricsIntegration) processGPUMetrics(metrics gpu.GPUMetrics) {
 // recordGPUMetrics records GPU metrics with the monitoring service
 func (gmi *GPUMetricsIntegration) recordGPUMetrics(metrics gpu.GPUMetrics) {
 	labels := map[string]string{
-		"gpu_id": metrics.GPUID,
+		"gpu_id":   metrics.GPUID,
 		"gpu_name": metrics.Name,
 	}
 
@@ -231,7 +231,7 @@ func (gmi *GPUMetricsIntegration) recordGPUMetrics(metrics gpu.GPUMetrics) {
 	if metrics.PowerDraw > 0 {
 		powerEfficiency = metrics.UtilizationGPU / metrics.PowerDraw
 	}
-	
+
 	gmi.monitoringService.RecordMetric(Metric{
 		Name:   "gpu_power_efficiency",
 		Type:   MetricGauge,
@@ -292,7 +292,7 @@ func (gmi *GPUMetricsIntegration) checkAlerts(metrics gpu.GPUMetrics, lastState 
 	if metrics.PowerLimit > 0 {
 		powerUsagePercent = metrics.PowerDraw / metrics.PowerLimit * 100
 	}
-	
+
 	if powerUsagePercent >= gmi.alertThresholds.CriticalPowerUsage {
 		alerts = append(alerts, gpu.GPUAlert{
 			Type:      "power",
@@ -439,7 +439,7 @@ func (gmi *GPUMetricsIntegration) GetGPUHealth() map[string]gpu.GPUHealthStatus 
 	defer gmi.mu.RUnlock()
 
 	health := make(map[string]gpu.GPUHealthStatus)
-	
+
 	for gpuID, metrics := range gmi.lastKnownState {
 		status := gmi.calculateHealthStatus(gpuID, metrics)
 		health[gpuID] = status
@@ -451,10 +451,10 @@ func (gmi *GPUMetricsIntegration) GetGPUHealth() map[string]gpu.GPUHealthStatus 
 // calculateHealthStatus calculates health status for a GPU
 func (gmi *GPUMetricsIntegration) calculateHealthStatus(gpuID string, metrics gpu.GPUMetrics) gpu.GPUHealthStatus {
 	status := gpu.GPUHealthStatus{
-		GPUID:     gpuID,
-		Status:    "healthy",
-		Timestamp: time.Now(),
-		Issues:    make([]string, 0),
+		GPUID:           gpuID,
+		Status:          "healthy",
+		Timestamp:       time.Now(),
+		Issues:          make([]string, 0),
 		Recommendations: make([]string, 0),
 	}
 
@@ -498,7 +498,7 @@ func (gmi *GPUMetricsIntegration) calculateHealthStatus(gpuID string, metrics gp
 	if metrics.PowerLimit > 0 {
 		powerUsagePercent = metrics.PowerDraw / metrics.PowerLimit * 100
 	}
-	
+
 	if powerUsagePercent >= gmi.alertThresholds.CriticalPowerUsage {
 		status.PowerStatus = "critical"
 		status.Status = "critical"
@@ -530,13 +530,13 @@ func (gmi *GPUMetricsIntegration) calculateHealthStatus(gpuID string, metrics gp
 	if alerts, exists := gmi.alertHistory[gpuID]; exists {
 		recentAlerts := make([]gpu.GPUAlert, 0)
 		cutoff := time.Now().Add(-5 * time.Minute) // Last 5 minutes
-		
+
 		for _, alert := range alerts {
 			if alert.Timestamp.After(cutoff) {
 				recentAlerts = append(recentAlerts, alert)
 			}
 		}
-		
+
 		status.Alerts = recentAlerts
 	}
 
