@@ -3,6 +3,8 @@
 **AI Infrastructure Tooling & Optimization Platform**
 
 ### Author: DeWitt Gibson (@dewitt4)
+**Repository**: https://github.com/Finoptimize/agentaflow-sro-community
+
 
 Deploy and manage AI infrastructure more efficiently with tools for GPU orchestration, model serving optimization, and comprehensive observability.
 
