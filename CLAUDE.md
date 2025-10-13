@@ -367,7 +367,7 @@ logger.Printf("ERROR: Failed to schedule workload %s: %v", workloadID, err)
 ## 🔍 Technical Specifications
 
 ### **System Requirements**
-- **Go Version**: 1.17+ (with compatibility for 1.21+ features)
+- **Go Version**: 1.21+
 - **Kubernetes**: 1.20+ for CRD and scheduler features
 - **NVIDIA Drivers**: Latest drivers for GPU monitoring
 - **Resources**: Minimal overhead, production-ready scaling
