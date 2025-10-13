@@ -80,16 +80,18 @@ func DefaultGPUCostConfiguration() GPUCostConfiguration {
 
 // GPUMetricsIntegration connects GPU metrics collection with observability monitoring
 type GPUMetricsIntegration struct {
-	monitoringService *MonitoringService
-	metricsCollector  *gpu.MetricsCollector
-	mu                sync.RWMutex
+	monitoringService  *MonitoringService
+	metricsCollector   *gpu.MetricsCollector
+	prometheusExporter *PrometheusExporter // Add Prometheus support
+	mu                 sync.RWMutex
 
 	// Configuration
-	alertThresholds GPUAlertThresholds
-	costConfig      GPUCostConfiguration // Add cost configuration
-	metricsEnabled  bool
-	eventsEnabled   bool
-	costsEnabled    bool
+	alertThresholds   GPUAlertThresholds
+	costConfig        GPUCostConfiguration // Add cost configuration
+	metricsEnabled    bool
+	eventsEnabled     bool
+	costsEnabled      bool
+	prometheusEnabled bool // Enable Prometheus export
 
 	// State tracking
 	lastKnownState map[string]gpu.GPUMetrics
@@ -211,6 +213,28 @@ func (gmi *GPUMetricsIntegration) SetCloudProviderPricing(provider, region strin
 		}
 		gmi.costConfig.CostPerHour[gpuType] = cost
 	}
+}
+
+// EnablePrometheusExport enables/disables Prometheus metrics export
+func (gmi *GPUMetricsIntegration) EnablePrometheusExport(enabled bool) {
+	gmi.mu.Lock()
+	defer gmi.mu.Unlock()
+	gmi.prometheusEnabled = enabled
+}
+
+// SetPrometheusExporter sets the Prometheus exporter for metrics
+func (gmi *GPUMetricsIntegration) SetPrometheusExporter(exporter *PrometheusExporter) {
+	gmi.mu.Lock()
+	defer gmi.mu.Unlock()
+	gmi.prometheusExporter = exporter
+	gmi.prometheusEnabled = true
+}
+
+// GetPrometheusExporter returns the current Prometheus exporter
+func (gmi *GPUMetricsIntegration) GetPrometheusExporter() *PrometheusExporter {
+	gmi.mu.RLock()
+	defer gmi.mu.RUnlock()
+	return gmi.prometheusExporter
 }
 
 // processGPUMetrics processes incoming GPU metrics and integrates with monitoring
@@ -350,6 +374,91 @@ func (gmi *GPUMetricsIntegration) recordGPUMetrics(metrics gpu.GPUMetrics) {
 		Value:  powerEfficiency,
 		Labels: labels,
 	})
+
+	// Export to Prometheus if enabled
+	if gmi.prometheusEnabled && gmi.prometheusExporter != nil {
+		gmi.exportGPUMetricsToPrometheus(metrics, powerEfficiency)
+	}
+}
+
+// exportGPUMetricsToPrometheus exports GPU metrics to Prometheus
+func (gmi *GPUMetricsIntegration) exportGPUMetricsToPrometheus(metrics gpu.GPUMetrics, powerEfficiency float64) {
+	labels := map[string]string{
+		"gpu_id":   metrics.GPUID,
+		"gpu_name": metrics.Name,
+		"node":     "localhost", // TODO: Get actual node name
+	}
+
+	// Core GPU metrics
+	gmi.prometheusExporter.UpdateMetric("gpu_utilization_percent", metrics.UtilizationGPU, labels)
+	gmi.prometheusExporter.UpdateMetric("gpu_memory_utilization_percent", metrics.UtilizationMemory, labels)
+	gmi.prometheusExporter.UpdateMetric("gpu_memory_used_bytes", float64(metrics.MemoryUsed)*1024*1024, labels) // Convert MB to bytes
+	gmi.prometheusExporter.UpdateMetric("gpu_memory_total_bytes", float64(metrics.MemoryTotal)*1024*1024, labels)
+	gmi.prometheusExporter.UpdateMetric("gpu_temperature_celsius", metrics.Temperature, labels)
+	gmi.prometheusExporter.UpdateMetric("gpu_power_draw_watts", metrics.PowerDraw, labels)
+	gmi.prometheusExporter.UpdateMetric("gpu_power_limit_watts", metrics.PowerLimit, labels)
+	gmi.prometheusExporter.UpdateMetric("gpu_fan_speed_percent", metrics.FanSpeed, labels)
+	gmi.prometheusExporter.UpdateMetric("gpu_clock_graphics_mhz", float64(metrics.ClockGraphics), labels)
+	gmi.prometheusExporter.UpdateMetric("gpu_clock_memory_mhz", float64(metrics.ClockMemory), labels)
+	gmi.prometheusExporter.UpdateMetric("gpu_process_count", float64(metrics.ProcessCount), labels)
+	gmi.prometheusExporter.UpdateMetric("gpu_efficiency_score", powerEfficiency, labels)
+
+	// Calculate idle time percentage (simplified)
+	idleTimePercent := 100.0 - metrics.UtilizationGPU
+	gmi.prometheusExporter.UpdateMetric("gpu_idle_time_percent", idleTimePercent, labels)
+
+	// Health status as numeric value
+	healthStatus := gmi.calculateHealthStatusNumeric(metrics)
+	healthLabels := make(map[string]string)
+	for k, v := range labels {
+		healthLabels[k] = v
+	}
+	healthLabels["status"] = gmi.getHealthStatusString(healthStatus)
+	gmi.prometheusExporter.UpdateMetric("gpu_health_status", float64(healthStatus), healthLabels)
+}
+
+// calculateHealthStatusNumeric returns health status as numeric value
+func (gmi *GPUMetricsIntegration) calculateHealthStatusNumeric(metrics gpu.GPUMetrics) int {
+	// Check for critical conditions
+	if metrics.Temperature >= gmi.alertThresholds.CriticalTemperature {
+		return 0 // Unhealthy
+	}
+
+	memoryUsagePercent := float64(metrics.MemoryUsed) / float64(metrics.MemoryTotal) * 100
+	if memoryUsagePercent >= gmi.alertThresholds.CriticalMemoryUsage {
+		return 0 // Unhealthy
+	}
+
+	powerUsagePercent := 0.0
+	if metrics.PowerLimit > 0 {
+		powerUsagePercent = metrics.PowerDraw / metrics.PowerLimit * 100
+	}
+	if powerUsagePercent >= gmi.alertThresholds.CriticalPowerUsage {
+		return 0 // Unhealthy
+	}
+
+	// Check for warning conditions
+	if metrics.Temperature >= gmi.alertThresholds.HighTemperature ||
+		memoryUsagePercent >= gmi.alertThresholds.HighMemoryUsage ||
+		powerUsagePercent >= gmi.alertThresholds.HighPowerUsage {
+		return 1 // Warning
+	}
+
+	return 2 // Healthy
+}
+
+// getHealthStatusString returns health status as string
+func (gmi *GPUMetricsIntegration) getHealthStatusString(status int) string {
+	switch status {
+	case 0:
+		return "unhealthy"
+	case 1:
+		return "warning"
+	case 2:
+		return "healthy"
+	default:
+		return "unknown"
+	}
 }
 
 // checkAlerts checks for alert conditions in GPU metrics
