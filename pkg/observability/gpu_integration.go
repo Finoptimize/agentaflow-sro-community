@@ -9,6 +9,75 @@ import (
 	"github.com/Finoptimize/agentaflow-sro-community/pkg/gpu"
 )
 
+// GPU cost configuration constants
+const (
+	// Default GPU hourly costs (USD) - based on common cloud provider pricing
+	DefaultCostA100     = 3.06   // AWS p4d.xlarge approximate cost
+	DefaultCostV100     = 3.06   // AWS p3.2xlarge approximate cost  
+	DefaultCostT4       = 0.526  // AWS g4dn.xlarge approximate cost
+	DefaultCostRTX      = 1.00   // Estimate for RTX series
+	DefaultCostGeneric  = 1.50   // Default fallback cost
+	
+	// Utilization cost factors
+	MinUtilizationFactor = 0.1   // Minimum cost factor for idle GPUs
+	MaxUtilizationFactor = 1.0   // Maximum cost factor for full utilization
+)
+
+// GPUCostConfiguration defines cost settings for GPU types and pricing models
+type GPUCostConfiguration struct {
+	// Cost per hour by GPU type (USD)
+	CostPerHour map[string]float64
+	
+	// Pricing model settings
+	UseUtilizationFactor bool    // Whether to adjust cost based on utilization
+	MinUtilizationFactor float64 // Minimum cost factor for idle GPUs
+	IdleCostReduction    float64 // Cost reduction factor for idle time (0.0-1.0)
+	
+	// Cloud provider settings
+	CloudProvider        string             // AWS, GCP, Azure, etc.
+	Region              string             // Cloud region for regional pricing
+	CustomPricing       map[string]float64 // Custom pricing overrides
+	
+	// Currency and billing
+	Currency            string  // Cost currency (USD, EUR, etc.)
+	TaxRate             float64 // Tax rate to apply (0.0-1.0)
+	
+	// Advanced pricing features
+	SpotInstanceDiscount float64            // Discount for spot instances (0.0-1.0)
+	ReservedInstanceCost map[string]float64 // Reserved instance pricing
+	VolumeDiscounts     []VolumeDiscount   // Volume-based discounts
+}
+
+// VolumeDiscount defines volume-based pricing discounts
+type VolumeDiscount struct {
+	MinHours     float64 // Minimum hours for discount to apply
+	DiscountRate float64 // Discount rate (0.0-1.0)
+}
+
+// DefaultGPUCostConfiguration returns a default cost configuration
+func DefaultGPUCostConfiguration() GPUCostConfiguration {
+	return GPUCostConfiguration{
+		CostPerHour: map[string]float64{
+			"a100":    DefaultCostA100,
+			"v100":    DefaultCostV100, 
+			"t4":      DefaultCostT4,
+			"rtx":     DefaultCostRTX,
+			"generic": DefaultCostGeneric,
+		},
+		UseUtilizationFactor: true,
+		MinUtilizationFactor: MinUtilizationFactor,
+		IdleCostReduction:    0.1, // 10% cost for idle time
+		CloudProvider:        "aws",
+		Region:              "us-west-2",
+		Currency:            "USD",
+		TaxRate:             0.0,
+		SpotInstanceDiscount: 0.0,
+		CustomPricing:       make(map[string]float64),
+		ReservedInstanceCost: make(map[string]float64),
+		VolumeDiscounts:     []VolumeDiscount{},
+	}
+}
+
 // GPUMetricsIntegration connects GPU metrics collection with observability monitoring
 type GPUMetricsIntegration struct {
 	monitoringService *MonitoringService
@@ -17,6 +86,7 @@ type GPUMetricsIntegration struct {
 
 	// Configuration
 	alertThresholds GPUAlertThresholds
+	costConfig      GPUCostConfiguration // Add cost configuration
 	metricsEnabled  bool
 	eventsEnabled   bool
 	costsEnabled    bool
@@ -61,6 +131,7 @@ func NewGPUMetricsIntegration(
 		monitoringService: monitoringService,
 		metricsCollector:  metricsCollector,
 		alertThresholds:   DefaultGPUAlertThresholds(),
+		costConfig:        DefaultGPUCostConfiguration(), // Initialize with defaults
 		metricsEnabled:    true,
 		eventsEnabled:     true,
 		costsEnabled:      true,
@@ -69,7 +140,9 @@ func NewGPUMetricsIntegration(
 	}
 
 	// Register callback with metrics collector
-	metricsCollector.RegisterCallback(integration.processGPUMetrics)
+	if metricsCollector != nil {
+		metricsCollector.RegisterCallback(integration.processGPUMetrics)
+	}
 
 	return integration
 }
@@ -102,6 +175,44 @@ func (gmi *GPUMetricsIntegration) EnableCostTracking(enabled bool) {
 	gmi.costsEnabled = enabled
 }
 
+// SetCostConfiguration configures custom cost settings
+func (gmi *GPUMetricsIntegration) SetCostConfiguration(config GPUCostConfiguration) {
+	gmi.mu.Lock()
+	defer gmi.mu.Unlock()
+	gmi.costConfig = config
+}
+
+// GetCostConfiguration returns the current cost configuration
+func (gmi *GPUMetricsIntegration) GetCostConfiguration() GPUCostConfiguration {
+	gmi.mu.RLock()
+	defer gmi.mu.RUnlock()
+	return gmi.costConfig
+}
+
+// UpdateGPUCost updates the cost for a specific GPU type
+func (gmi *GPUMetricsIntegration) UpdateGPUCost(gpuType string, costPerHour float64) {
+	gmi.mu.Lock()
+	defer gmi.mu.Unlock()
+	if gmi.costConfig.CostPerHour == nil {
+		gmi.costConfig.CostPerHour = make(map[string]float64)
+	}
+	gmi.costConfig.CostPerHour[gpuType] = costPerHour
+}
+
+// SetCloudProviderPricing configures pricing for a specific cloud provider
+func (gmi *GPUMetricsIntegration) SetCloudProviderPricing(provider, region string, pricing map[string]float64) {
+	gmi.mu.Lock()
+	defer gmi.mu.Unlock()
+	gmi.costConfig.CloudProvider = provider
+	gmi.costConfig.Region = region
+	for gpuType, cost := range pricing {
+		if gmi.costConfig.CostPerHour == nil {
+			gmi.costConfig.CostPerHour = make(map[string]float64)
+		}
+		gmi.costConfig.CostPerHour[gpuType] = cost
+	}
+}
+
 // processGPUMetrics processes incoming GPU metrics and integrates with monitoring
 func (gmi *GPUMetricsIntegration) processGPUMetrics(metrics gpu.GPUMetrics) {
 	gmi.mu.Lock()
@@ -127,7 +238,8 @@ func (gmi *GPUMetricsIntegration) processGPUMetrics(metrics gpu.GPUMetrics) {
 			gmi.alertHistory[gpuID] = make([]gpu.GPUAlert, 0)
 		}
 		gmi.alertHistory[gpuID] = append(gmi.alertHistory[gpuID], alerts...)
-
+		// Limit alert history size
+		const maxAlertsPerGPU = 100
 		// Keep only last 100 alerts per GPU
 		if len(gmi.alertHistory[gpuID]) > 100 {
 			gmi.alertHistory[gpuID] = gmi.alertHistory[gpuID][len(gmi.alertHistory[gpuID])-100:]
@@ -393,40 +505,42 @@ func (gmi *GPUMetricsIntegration) recordGPUCosts(metrics gpu.GPUMetrics, lastSta
 	// Calculate time since last measurement
 	duration := metrics.Timestamp.Sub(lastState.Timestamp)
 	hours := duration.Hours()
-
-	// Estimate cost based on GPU type and power consumption
-	// These are rough estimates - real costs would come from cloud provider APIs
-	var costPerHour float64
-	switch {
-	case strings.Contains(strings.ToLower(metrics.Name), "a100"):
-		costPerHour = 3.06 // Approximate AWS p4d.xlarge cost
-	case strings.Contains(strings.ToLower(metrics.Name), "v100"):
-		costPerHour = 3.06 // Approximate AWS p3.2xlarge cost
-	case strings.Contains(strings.ToLower(metrics.Name), "t4"):
-		costPerHour = 0.526 // Approximate AWS g4dn.xlarge cost
-	case strings.Contains(strings.ToLower(metrics.Name), "rtx"):
-		costPerHour = 1.00 // Estimate for RTX series
-	default:
-		costPerHour = 1.50 // Default estimate
+	if hours <= 0 {
+		return // Invalid duration
 	}
 
-	// Adjust cost based on actual utilization (idle time costs less)
-	utilizationFactor := (metrics.UtilizationGPU + lastState.UtilizationGPU) / 200.0 // Average utilization
-	if utilizationFactor < 0.1 {
-		utilizationFactor = 0.1 // Minimum cost factor for idle GPU
+	// Get cost per hour for this GPU type using the new configuration system
+	costPerHour := gmi.getGPUCostPerHour(metrics.Name)
+	
+	// Calculate utilization factor if enabled
+	utilizationFactor := 1.0
+	if gmi.costConfig.UseUtilizationFactor {
+		utilizationFactor = gmi.calculateUtilizationFactor(metrics, lastState)
 	}
-
-	actualCost := costPerHour * hours * utilizationFactor
+	
+	// Apply spot instance discount if configured
+	spotDiscount := 1.0 - gmi.costConfig.SpotInstanceDiscount
+	
+	// Calculate base cost
+	baseCost := costPerHour * hours * utilizationFactor * spotDiscount
+	
+	// Apply volume discounts if any
+	finalCost := gmi.applyVolumeDiscounts(baseCost, hours)
+	
+	// Apply tax if configured
+	if gmi.costConfig.TaxRate > 0 {
+		finalCost *= (1.0 + gmi.costConfig.TaxRate)
+	}
 
 	// Record cost entry
 	costEntry := CostEntry{
 		ID:        fmt.Sprintf("gpu-%s-%d", metrics.GPUID, time.Now().Unix()),
 		Operation: "gpu_compute",
-		ModelID:   "gpu_workload", // Generic model ID for GPU compute
+		ModelID:   fmt.Sprintf("gpu_%s", gmi.normalizeGPUType(metrics.Name)),
 		Duration:  duration,
 		GPUHours:  hours,
-		Cost:      actualCost,
-		Currency:  "USD",
+		Cost:      finalCost,
+		Currency:  gmi.costConfig.Currency,
 		Timestamp: time.Now(),
 	}
 
@@ -561,4 +675,98 @@ func (gmi *GPUMetricsIntegration) GetAlertHistory(gpuID string, since time.Time)
 	}
 
 	return result
+}
+
+// getGPUCostPerHour returns the cost per hour for a given GPU type
+func (gmi *GPUMetricsIntegration) getGPUCostPerHour(gpuName string) float64 {
+	gpuType := gmi.normalizeGPUType(gpuName)
+	
+	// Check custom pricing first
+	if cost, exists := gmi.costConfig.CustomPricing[gpuType]; exists {
+		return cost
+	}
+	
+	// Check reserved instance pricing
+	if cost, exists := gmi.costConfig.ReservedInstanceCost[gpuType]; exists {
+		return cost
+	}
+	
+	// Check standard pricing
+	if cost, exists := gmi.costConfig.CostPerHour[gpuType]; exists {
+		return cost
+	}
+	
+	// Return generic cost as fallback
+	if cost, exists := gmi.costConfig.CostPerHour["generic"]; exists {
+		return cost
+	}
+	
+	return DefaultCostGeneric
+}
+
+// normalizeGPUType extracts and normalizes GPU type from GPU name
+func (gmi *GPUMetricsIntegration) normalizeGPUType(gpuName string) string {
+	lowerName := strings.ToLower(gpuName)
+	
+	switch {
+	case strings.Contains(lowerName, "a100"):
+		return "a100"
+	case strings.Contains(lowerName, "v100"):
+		return "v100"
+	case strings.Contains(lowerName, "t4"):
+		return "t4"
+	case strings.Contains(lowerName, "rtx"):
+		return "rtx"
+	case strings.Contains(lowerName, "h100"):
+		return "h100"
+	case strings.Contains(lowerName, "a10"):
+		return "a10"
+	case strings.Contains(lowerName, "k80"):
+		return "k80"
+	default:
+		return "generic"
+	}
+}
+
+// calculateUtilizationFactor calculates cost adjustment based on GPU utilization
+func (gmi *GPUMetricsIntegration) calculateUtilizationFactor(current, previous gpu.GPUMetrics) float64 {
+	// Average utilization over the measurement period
+	avgUtilization := (current.UtilizationGPU + previous.UtilizationGPU) / 2.0 / 100.0
+	
+	// Apply idle cost reduction for underutilized GPUs
+	if avgUtilization < 0.1 { // Less than 10% utilization
+		return gmi.costConfig.MinUtilizationFactor + 
+			(gmi.costConfig.IdleCostReduction * avgUtilization)
+	}
+	
+	// Linear factor based on utilization
+	factor := gmi.costConfig.MinUtilizationFactor + 
+		(avgUtilization * (MaxUtilizationFactor - gmi.costConfig.MinUtilizationFactor))
+	
+	// Ensure factor is within bounds
+	if factor < gmi.costConfig.MinUtilizationFactor {
+		return gmi.costConfig.MinUtilizationFactor
+	}
+	if factor > MaxUtilizationFactor {
+		return MaxUtilizationFactor
+	}
+	
+	return factor
+}
+
+// applyVolumeDiscounts applies volume-based discounts to the cost
+func (gmi *GPUMetricsIntegration) applyVolumeDiscounts(cost, hours float64) float64 {
+	if len(gmi.costConfig.VolumeDiscounts) == 0 {
+		return cost
+	}
+	
+	// Find the highest applicable discount
+	var bestDiscount float64
+	for _, discount := range gmi.costConfig.VolumeDiscounts {
+		if hours >= discount.MinHours && discount.DiscountRate > bestDiscount {
+			bestDiscount = discount.DiscountRate
+		}
+	}
+	
+	return cost * (1.0 - bestDiscount)
 }
