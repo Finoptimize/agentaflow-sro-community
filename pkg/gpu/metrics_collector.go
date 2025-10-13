@@ -198,7 +198,15 @@ func (mc *MetricsCollector) collectMetrics() {
 		if len(mc.metrics[gpuID]) > 1000 {
 			mc.metrics[gpuID] = mc.metrics[gpuID][len(mc.metrics[gpuID])-1000:]
 		}
-
+		// Store metrics (keep last MaxMetricsHistory entries per GPU)
+		const MaxMetricsHistory = 1000
+		if _, exists := mc.metrics[gpuID]; !exists {
+			mc.metrics[gpuID] = make([]GPUMetrics, 0)
+		}
+		mc.metrics[gpuID] = append(mc.metrics[gpuID], metrics)
+		if len(mc.metrics[gpuID]) > MaxMetricsHistory {
+			mc.metrics[gpuID] = mc.metrics[gpuID][len(mc.metrics[gpuID])-MaxMetricsHistory:]
+		}
 		// Store processes
 		mc.processes[gpuID] = processes
 

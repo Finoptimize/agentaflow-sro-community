@@ -176,8 +176,10 @@ func (mas *MetricsAggregationService) calculateGPUStatistics(stats *GPUStats, hi
 		// Calculate idle time (utilization < 5%)
 		if i > 0 {
 			timeDiff := metric.Timestamp.Sub(history[i-1].Timestamp).Seconds()
-			if metric.UtilizationGPU < 5.0 {
-				idleTimeSeconds += timeDiff
+			const IdleThreshold = 5.0
+
+						if metric.UtilizationGPU < IdleThreshold {
+							idleTimeSeconds += timeDiff
 			}
 		} // Track process switches
 		if lastProcessCount != -1 && metric.ProcessCount != lastProcessCount {
