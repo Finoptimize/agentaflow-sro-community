@@ -15,11 +15,21 @@ import boto3
 from botocore.exceptions import ClientError, NoCredentialsError
 
 class DemoCostCalculator:
+    """
+    DemoCostCalculator analyzes AWS costs and calculates ROI metrics for the AgentaFlow demo.
+
+    Note:
+        The AWS Cost Explorer API is only available in the 'us-east-1' region, regardless of where your resources are located.
+        The 'region' argument only affects other AWS service clients (e.g., EC2), not Cost Explorer.
+    """
     def __init__(self, region: str = "us-west-2"):
         self.region = region
         try:
-            self.ce_client = boto3.client('ce', region_name='us-east-1')  # Cost Explorer is in us-east-1
+            # Cost Explorer API is only available in us-east-1, regardless of resource region.
+            self.ce_client = boto3.client('ce', region_name='us-east-1')
             self.ec2_client = boto3.client('ec2', region_name=region)
+            if region != "us-east-1":
+                print("ℹ️  Note: Cost Explorer API is only available in 'us-east-1'. The 'region' argument only affects EC2 client.")
         except NoCredentialsError:
             print("❌ AWS credentials not configured. Some features will be unavailable.")
             self.ce_client = None
