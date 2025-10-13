@@ -116,6 +116,74 @@ monitor.RecordCost(observability.CostEntry{
 summary := monitor.GetCostSummary(startTime, endTime)
 ```
 
+### Real-time GPU Metrics Collection
+
+```go
+import "github.com/Finoptimize/agentaflow-sro-community/pkg/gpu"
+import "github.com/Finoptimize/agentaflow-sro-community/pkg/observability"
+
+// Create GPU metrics collector (collects every 5 seconds)
+metricsCollector := gpu.NewMetricsCollector(5 * time.Second)
+
+// Create monitoring service integration
+monitoringService := observability.NewMonitoringService(10000)
+integration := observability.NewGPUMetricsIntegration(monitoringService, metricsCollector)
+
+// Start real-time collection
+metricsCollector.Start()
+
+// Register callback for real-time monitoring
+metricsCollector.RegisterCallback(func(metrics gpu.GPUMetrics) {
+    fmt.Printf("GPU %s: %.1f%% util, %.1f°C, %dMB used\n",
+        metrics.GPUID, metrics.UtilizationGPU, metrics.Temperature, metrics.MemoryUsed)
+})
+
+// Get system overview
+overview := metricsCollector.GetSystemOverview()
+fmt.Printf("Total GPUs: %v, Active: %v, Avg Util: %.1f%%\n",
+    overview["total_gpus"], overview["active_gpus"], overview["avg_utilization"])
+
+// Get efficiency metrics
+efficiency := metricsCollector.GetGPUEfficiencyMetrics("gpu-0", time.Hour)
+fmt.Printf("GPU efficiency: %.1f%% idle time, %.3f power efficiency\n",
+    efficiency["idle_time_percent"], efficiency["avg_power_efficiency"])
+```
+
+### Advanced GPU Analytics
+
+```go
+// Create metrics aggregation service
+aggregationService := gpu.NewMetricsAggregationService(
+    metricsCollector,
+    1*time.Minute,  // Aggregation interval
+    24*time.Hour,   // Retention period
+)
+aggregationService.Start()
+
+// Get comprehensive GPU statistics
+stats, _ := aggregationService.GetGPUStats("gpu-0")
+fmt.Printf("Average utilization: %.1f%%, Peak: %.1f%%\n",
+    stats.AverageUtilization, stats.PeakUtilization)
+
+// Get efficiency report
+report := aggregationService.GetEfficiencyReport()
+clusterEff := report["cluster_efficiency"].(map[string]interface{})
+fmt.Printf("Cluster idle time: %.1f%%, Efficiency potential: %.1f%%\n",
+    clusterEff["average_idle_time_percent"], clusterEff["utilization_potential"])
+
+// Analyze performance trends
+trends := aggregationService.GetPerformanceTrends("gpu-0", 4*time.Hour)
+utilTrend := trends["utilization_trend"].(map[string]float64)
+fmt.Printf("Utilization trend: slope=%.3f (r²=%.3f)\n",
+    utilTrend["slope"], utilTrend["r_squared"])
+
+// Get cost analysis
+costAnalysis := aggregationService.GetCostAnalysis()
+fmt.Printf("Estimated cost: $%.2f, Potential savings: $%.2f (%.1f%%)\n",
+    costAnalysis["total_estimated_cost"], costAnalysis["total_potential_savings"],
+    costAnalysis["savings_percentage"])
+```
+
 ### Kubernetes GPU Scheduling
 
 ```bash
@@ -158,13 +226,13 @@ workload := &k8s.GPUWorkload{
     },
 }
 scheduler.SubmitGPUWorkload(workload)
-```
-
-## 📊 Key Benefits
+```## 📊 Key Benefits
 
 | Component | Benefit | Impact |
 |-----------|---------|--------|
 | GPU Scheduling | Optimized utilization | Up to 40% reduction in GPU idle time |
+| Real-time Metrics | Live GPU monitoring | Real-time utilization, temperature, power tracking |
+| GPU Analytics | Performance insights | Efficiency scoring, trend analysis, cost optimization |
 | Kubernetes Integration | Native K8s scheduling | Seamless integration with existing clusters |
 | Request Batching | Improved throughput | 3-5x increase in requests/second |
 | Response Caching | Reduced latency | Up to 50% faster responses |
@@ -225,7 +293,7 @@ Contributions are welcome! This is a community edition focused on providing acce
 ## 🗺️ Roadmap
 
 - ✅ Kubernetes integration for GPU scheduling
-- Real-time GPU metrics collection
+- ✅ Real-time GPU metrics collection
 - Prometheus/Grafana integration
 - Web dashboard for monitoring
 - OpenTelemetry support for tracing
