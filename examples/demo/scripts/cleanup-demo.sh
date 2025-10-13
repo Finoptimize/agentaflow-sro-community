@@ -33,7 +33,12 @@ generate_cost_report() {
     
     # Get today's date for cost analysis
     TODAY=$(date +%Y-%m-%d)
-    YESTERDAY=$(date -d "yesterday" +%Y-%m-%d)
+    # Portable date arithmetic for YESTERDAY
+    if [[ "$(uname)" == "Darwin" ]]; then
+        YESTERDAY=$(date -v-1d +%Y-%m-%d)
+    else
+        YESTERDAY=$(date -d "yesterday" +%Y-%m-%d)
+    fi
     
     log_info "Fetching AWS costs for demo period..."
     
