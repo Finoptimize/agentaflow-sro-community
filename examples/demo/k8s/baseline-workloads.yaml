@@ -1,0 +1,221 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: agentaflow-demo
+  labels:
+    demo: "baseline"
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: pytorch-training-baseline-1
+  namespace: agentaflow-demo
+  labels:
+    app: pytorch-training
+    scheduling: "baseline"
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: pytorch-training-baseline-1
+  template:
+    metadata:
+      labels:
+        app: pytorch-training-baseline-1
+        scheduling: "baseline"
+    spec:
+      containers:
+      - name: trainer
+        image: pytorch/pytorch:2.0.1-cuda11.7-cudnn8-runtime
+        command: ["python", "-c"]
+        args:
+        - |
+          import torch
+          import time
+          import random
+          
+          print("🏗️  Starting PyTorch training (Baseline Scheduling)")
+          print(f"CUDA Available: {torch.cuda.is_available()}")
+          print(f"GPU Count: {torch.cuda.device_count()}")
+          
+          if torch.cuda.is_available():
+              device = torch.device('cuda')
+              print(f"Using GPU: {torch.cuda.get_device_name()}")
+              
+              # Simulate variable training workload
+              for epoch in range(100):
+                  # Create random workload to vary GPU utilization
+                  batch_size = random.randint(32, 128)
+                  tensor_size = random.randint(1000, 5000)
+                  
+                  # Allocate GPU memory
+                  data = torch.randn(batch_size, tensor_size, device=device)
+                  model_weight = torch.randn(tensor_size, tensor_size, device=device)
+                  
+                  # Simulate training computation
+                  for _ in range(random.randint(10, 50)):
+                      output = torch.matmul(data, model_weight)
+                      loss = torch.sum(output)
+                      
+                  # Vary sleep to simulate different workload phases
+                  sleep_time = random.uniform(0.5, 3.0)
+                  print(f"Epoch {epoch}: Batch={batch_size}, Loss={loss.item():.4f}, Sleep={sleep_time:.1f}s")
+                  time.sleep(sleep_time)
+                  
+                  # Cleanup to free memory periodically
+                  if epoch % 10 == 0:
+                      del data, model_weight, output
+                      torch.cuda.empty_cache()
+                      time.sleep(2)  # Simulate idle time between batches
+          else:
+              print("⚠️  No GPU available, sleeping...")
+              time.sleep(3600)  # Sleep if no GPU
+        resources:
+          requests:
+            memory: "4Gi"
+            nvidia.com/gpu: 1
+          limits:
+            memory: "8Gi"
+            nvidia.com/gpu: 1
+        env:
+        - name: PYTHONUNBUFFERED
+          value: "1"
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: pytorch-training-baseline-2
+  namespace: agentaflow-demo
+  labels:
+    app: pytorch-training
+    scheduling: "baseline"
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: pytorch-training-baseline-2
+  template:
+    metadata:
+      labels:
+        app: pytorch-training-baseline-2
+        scheduling: "baseline"
+    spec:
+      containers:
+      - name: trainer
+        image: pytorch/pytorch:2.0.1-cuda11.7-cudnn8-runtime
+        command: ["python", "-c"]
+        args:
+        - |
+          import torch
+          import time
+          import random
+          
+          print("🏗️  Starting PyTorch inference (Baseline Scheduling)")
+          print(f"CUDA Available: {torch.cuda.is_available()}")
+          
+          if torch.cuda.is_available():
+              device = torch.device('cuda')
+              print(f"Using GPU: {torch.cuda.get_device_name()}")
+              
+              # Simulate inference workload with irregular patterns
+              for request_batch in range(1000):
+                  # Simulate varying request patterns
+                  requests_in_batch = random.randint(1, 10)
+                  
+                  for req in range(requests_in_batch):
+                      # Variable inference load
+                      input_size = random.randint(512, 2048)
+                      data = torch.randn(1, input_size, device=device)
+                      model = torch.randn(input_size, 1000, device=device)
+                      
+                      # Inference computation
+                      with torch.no_grad():
+                          output = torch.matmul(data, model)
+                          prediction = torch.argmax(output)
+                      
+                      if req % 20 == 0:
+                          print(f"Batch {request_batch}, Request {req}: Prediction={prediction.item()}")
+                  
+                  # Irregular sleep patterns (simulating real-world usage)
+                  if random.random() < 0.3:  # 30% chance of longer idle
+                      time.sleep(random.uniform(2, 8))
+                  else:
+                      time.sleep(random.uniform(0.1, 1.0))
+                      
+                  # Periodic cleanup
+                  if request_batch % 50 == 0:
+                      torch.cuda.empty_cache()
+          else:
+              print("⚠️  No GPU available")
+              time.sleep(3600)
+        resources:
+          requests:
+            memory: "2Gi"
+            nvidia.com/gpu: 1
+          limits:
+            memory: "4Gi"
+            nvidia.com/gpu: 1
+        env:
+        - name: PYTHONUNBUFFERED
+          value: "1"
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: batch-processing-baseline
+  namespace: agentaflow-demo
+  labels:
+    app: batch-processing
+    scheduling: "baseline"
+spec:
+  parallelism: 1
+  completions: 1
+  template:
+    metadata:
+      labels:
+        app: batch-processing-baseline
+        scheduling: "baseline"
+    spec:
+      restartPolicy: OnFailure
+      containers:
+      - name: processor
+        image: nvidia/cuda:11.8-runtime-ubuntu20.04
+        command: ["bash", "-c"]
+        args:
+        - |
+          echo "🔄 Starting batch processing (Baseline Scheduling)"
+          
+          # Install Python and dependencies
+          apt-get update && apt-get install -y python3 python3-pip
+          pip3 install numpy
+          
+          python3 -c "
+          import numpy as np
+          import time
+          import random
+          
+          print('Running CPU-intensive batch processing...')
+          
+          for batch in range(20):
+              # Simulate data processing workload
+              data_size = random.randint(10000, 50000)
+              data = np.random.randn(data_size, data_size)
+              
+              # CPU-heavy operations
+              result = np.linalg.svd(data[:1000, :1000])  # Singular Value Decomposition
+              eigenvals = np.linalg.eigvals(data[:500, :500])
+              
+              print(f'Batch {batch}: Processed {data_size}x{data_size} matrix')
+              
+              # Variable processing time
+              time.sleep(random.uniform(30, 120))
+          
+          print('Batch processing completed')
+          "
+        resources:
+          requests:
+            memory: "2Gi"
+            cpu: "1000m"
+          limits:
+            memory: "4Gi"
+            cpu: "2000m"
