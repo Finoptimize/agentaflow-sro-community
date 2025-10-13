@@ -465,6 +465,6 @@ func generateAlertMetrics(exporter *observability.PrometheusExporter, integratio
 // getWaveValue returns a value between 0 and 1 based on a sine wave
 func getWaveValue(baseTime time.Time, period time.Duration) float64 {
 	elapsed := time.Since(baseTime)
-	radians := (float64(elapsed) / float64(period)) * 2.0 * 3.14159
+	radians := (float64(elapsed) / float64(period)) * 2.0 * math.Pi
 	return (1.0 + 0.8*time.Duration(radians).Seconds()) / 2.0
 }
