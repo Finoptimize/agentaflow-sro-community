@@ -496,6 +496,23 @@ func (mc *MetricsCollector) ExportMetricsJSON(gpuID string, since time.Time) ([]
 	return json.MarshalIndent(history, "", "  ")
 }
 
+// CollectMetrics collects and returns current metrics for the first available GPU
+// This method provides backwards compatibility
+func (mc *MetricsCollector) CollectMetrics() (*GPUMetrics, error) {
+	latest := mc.GetLatestMetrics()
+
+	if len(latest) == 0 {
+		return nil, fmt.Errorf("no GPU metrics available")
+	}
+
+	// Return the first available metric
+	for _, metrics := range latest {
+		return &metrics, nil
+	}
+
+	return nil, fmt.Errorf("no GPU metrics available")
+}
+
 // GetSystemOverview provides a system-wide GPU overview
 func (mc *MetricsCollector) GetSystemOverview() map[string]interface{} {
 	mc.mu.RLock()

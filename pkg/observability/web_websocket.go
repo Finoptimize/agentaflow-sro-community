@@ -119,7 +119,13 @@ func (wd *WebDashboard) handleWebSocketCommand(conn *websocket.Conn, cmd map[str
 func (wd *WebDashboard) handleSubscription(conn *websocket.Conn, cmd map[string]interface{}) {
 	// Future enhancement: Allow clients to subscribe to specific metrics
 	log.Printf("WebSocket subscription request: %v", cmd)
+}
 
+// handleUnsubscription handles metric unsubscription requests
+func (wd *WebDashboard) handleUnsubscription(conn *websocket.Conn, cmd map[string]interface{}) {
+	// Future enhancement: Allow clients to unsubscribe from specific metrics
+	log.Printf("WebSocket unsubscription request: %v", cmd)
+}
 
 // keepConnectionAlive maintains WebSocket connection with ping/pong
 func (wd *WebDashboard) keepConnectionAlive(conn *websocket.Conn) {
@@ -147,18 +153,18 @@ func (wd *WebDashboard) keepConnectionAlive(conn *websocket.Conn) {
 	}
 }
 
-// handleUnsubscription handles metric unsubscription requests
-func (wd *WebDashboard) handleUnsubscription(conn *websocket.Conn, cmd map[string]interface{}) {
-	// Future enhancement: Allow clients to unsubscribe from specific metrics
-	log.Printf("WebSocket unsubscription request: %v", cmd)
-}
-
 // buildMetricsMessage creates a metrics message with current dashboard data
 func (wd *WebDashboard) buildMetricsMessage() map[string]interface{} {
 	wd.mu.RLock()
+
+	gpuMetricsInterface := make(map[string]interface{})
+	for k, v := range wd.lastMetrics {
+		gpuMetricsInterface[k] = v
+	}
+
 	metrics := DashboardMetrics{
 		Timestamp:   time.Now(),
-		GPUMetrics:  wd.lastMetrics,
+		GPUMetrics:  gpuMetricsInterface,
 		SystemStats: wd.calculateSystemStats(),
 		CostData:    wd.lastCostData,
 		Alerts:      wd.getActiveAlerts(),
@@ -186,22 +192,18 @@ func (wd *WebDashboard) broadcastToAllConnections(message interface{}) {
 	}
 }
 
-// startWebSocketBroadcast starts the background routine for broadcasting metrics
-func (wd *WebDashboard) startWebSocketBroadcast() {
-	ticker := time.NewTicker(5 * time.Second)
-	defer ticker.Stop()
-
-	for range ticker.C {
-		wd.broadcastMetrics()
-	}
-}
-
 // broadcastMetrics sends current metrics to all connected WebSocket clients
 func (wd *WebDashboard) broadcastMetrics() {
 	wd.mu.RLock()
+
+	gpuMetricsInterface := make(map[string]interface{})
+	for k, v := range wd.lastMetrics {
+		gpuMetricsInterface[k] = v
+	}
+
 	metrics := DashboardMetrics{
 		Timestamp:   time.Now(),
-		GPUMetrics:  wd.lastMetrics,
+		GPUMetrics:  gpuMetricsInterface,
 		SystemStats: wd.calculateSystemStats(),
 		CostData:    wd.lastCostData,
 		Alerts:      wd.getActiveAlerts(),
@@ -220,9 +222,15 @@ func (wd *WebDashboard) broadcastMetrics() {
 // sendMetricsToConnection sends current metrics to a specific connection
 func (wd *WebDashboard) sendMetricsToConnection(conn *websocket.Conn) {
 	wd.mu.RLock()
+
+	gpuMetricsInterface := make(map[string]interface{})
+	for k, v := range wd.lastMetrics {
+		gpuMetricsInterface[k] = v
+	}
+
 	metrics := DashboardMetrics{
 		Timestamp:   time.Now(),
-		GPUMetrics:  wd.lastMetrics,
+		GPUMetrics:  gpuMetricsInterface,
 		SystemStats: wd.calculateSystemStats(),
 		CostData:    wd.lastCostData,
 		Alerts:      wd.getActiveAlerts(),

@@ -1,9 +1,10 @@
 # AgentaFlow SRO Community Edition
 
-**AI Infrastructure Tooling & Optimization Platform**
+## AI Infrastructure Tooling & Optimization Platform
 
-### Author: DeWitt Gibson (@dewitt4)
-**Repository**: https://github.com/Finoptimize/agentaflow-sro-community
+**Author**: DeWitt Gibson (@dewitt4)
+
+**Repository**: <https://github.com/Finoptimize/agentaflow-sro-community>
 
 
 Deploy and manage AI infrastructure more efficiently with tools for GPU orchestration, model serving optimization, and comprehensive observability.
@@ -14,7 +15,9 @@ Deploy and manage AI infrastructure more efficiently with tools for GPU orchestr
 ## 🚀 Features
 
 ### GPU Orchestration & Scheduling
+
 Tools that optimize GPU utilization across workloads, reducing waste:
+
 - **Smart Scheduling**: Multiple strategies (least-utilized, best-fit, priority, round-robin)
 - **Kubernetes Integration**: Native Kubernetes GPU scheduling with Custom Resource Definitions
 - **Resource Optimization**: Reduce GPU idle time by up to 40%
@@ -22,14 +25,18 @@ Tools that optimize GPU utilization across workloads, reducing waste:
 - **Real-time Monitoring**: Track utilization, memory, temperature, and power
 
 ### AI Model Serving Optimization
+
 Software that reduces inference costs through better batching, caching, and routing:
+
 - **Request Batching**: Improve throughput by 3-5x with intelligent batching
 - **Smart Caching**: Reduce latency by up to 50% with TTL-based caching
 - **Load Balancing**: Multiple routing strategies for optimal distribution
 - **Cost Reduction**: Minimize inference costs through efficient resource use
 
 ### Observability Tools for AI Systems
+
 Enterprise-grade monitoring, debugging, and cost tracking for LLM applications and training runs:
+
 - **Prometheus Integration**: Production-ready metrics export with 20+ GPU and cost metrics
 - **Grafana Dashboards**: Pre-built visual analytics for GPU clusters and cost optimization
 - **Real-time Alerting**: Automatic threshold monitoring and notification system
@@ -313,7 +320,8 @@ go run main.go
 ```
 
 This starts:
-- **Prometheus metrics server** on http://localhost:8080/metrics
+
+- **Prometheus metrics server** on <http://localhost:8080/metrics>
 - **Real-time GPU monitoring** with automatic export
 - **Cost tracking** with live calculations
 - **Performance analytics** and efficiency scoring
@@ -337,6 +345,7 @@ kubectl port-forward svc/prometheus-service 9090:9090 -n agentaflow-monitoring
 ### 🎯 Available Metrics & Dashboards
 
 **GPU Performance Metrics:**
+
 - `agentaflow_gpu_utilization_percent` - Real-time GPU utilization
 - `agentaflow_gpu_memory_used_bytes` - Memory consumption tracking
 - `agentaflow_gpu_temperature_celsius` - Thermal monitoring
@@ -344,18 +353,21 @@ kubectl port-forward svc/prometheus-service 9090:9090 -n agentaflow-monitoring
 - `agentaflow_gpu_fan_speed_percent` - Cooling system status
 
 **Cost & Efficiency Analytics:**
+
 - `agentaflow_cost_total_dollars` - Real-time cost tracking
 - `agentaflow_gpu_efficiency_score` - Efficiency scoring (0-100)
 - `agentaflow_gpu_idle_time_percent` - Resource waste tracking
 - `agentaflow_cost_per_hour` - Live hourly cost calculation
 
 **Workload & Scheduling Metrics:**
+
 - `agentaflow_workloads_pending` - Job queue depth
 - `agentaflow_workloads_completed_total` - Completion tracking
 - `agentaflow_scheduler_decisions_total` - Scheduling decisions
 - `agentaflow_gpu_assignments_total` - Resource assignments
 
 **System Health & Alerts:**
+
 - Component status monitoring
 - Automatic threshold alerts
 - Performance trend analysis
@@ -364,6 +376,7 @@ kubectl port-forward svc/prometheus-service 9090:9090 -n agentaflow-monitoring
 ### 📈 Pre-built Grafana Dashboards
 
 The integration includes production-ready dashboards:
+
 - **GPU Cluster Overview** - Multi-node GPU monitoring
 - **Cost Analysis Dashboard** - Real-time cost tracking and forecasting
 - **Performance Analytics** - Efficiency scoring and optimization insights
@@ -382,7 +395,7 @@ cd examples/demo/web-dashboard
 go run main.go
 ```
 
-**Access the dashboard**: http://localhost:8090
+**Access the dashboard**: <http://localhost:8090>
 
 ### ✨ Dashboard Features
 
@@ -407,6 +420,7 @@ For detailed dashboard documentation, see [examples/demo/web-dashboard/README.md
 For detailed documentation, see [DOCUMENTATION.md](DOCUMENTATION.md)
 
 Topics covered:
+
 - Detailed API reference
 - Scheduling strategies
 - Performance optimization
@@ -451,7 +465,7 @@ Contributions are welcome! This is a community edition focused on providing acce
 Looking for advanced features for production environments? Our **Enterprise Edition** will include:
 
 - **Multi-cluster Orchestration**: Manage GPU resources across multiple Kubernetes clusters
-- **Multi-cloud GPU resource support**: Support for running in Azure, Google Cloud, Vercel, or DigitalOcean 
+- **Multi-cloud GPU resource support**: Support for running in Azure, Google Cloud, Vercel, or DigitalOcean
 - **Advanced Scheduling Algorithms**: Cost optimization algorithms and priority queues for enterprise workloads  
 - **RBAC and Audit Logs**: Role-based access control and comprehensive audit logging
 - **Enterprise Integrations**: Slack alerts, DataDog monitoring, and other enterprise tools
@@ -467,4 +481,4 @@ For questions, issues, or contributions, please open an issue on GitHub.
 
 ---
 
-**Built with ❤️ by FinOptimize for AgentaFlow**
+Built with ❤️ by FinOptimize for AgentaFlow
