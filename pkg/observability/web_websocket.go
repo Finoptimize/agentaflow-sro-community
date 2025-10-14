@@ -35,12 +35,22 @@ func (wd *WebDashboard) handleWebSocket(w http.ResponseWriter, r *http.Request) 
 	wd.sendMetricsToConnection(conn)
 
 	// Clean up when connection closes
-	wd.wsMutex.Lock()
-	delete(wd.wsConnections, conn)
-	delete(wd.wsWriteMutexes, conn)
-	wd.wsMutex.Unlock()
+	defer func() {
+		wd.wsMutex.Lock()
+		delete(wd.wsConnections, conn)
+		delete(wd.wsWriteMutexes, conn)
+		wd.wsMutex.Unlock()
+		log.Printf("WebSocket connection closed from %s", r.RemoteAddr)
+	}()
 
-	log.Printf("WebSocket connection closed from %s", r.RemoteAddr)
+	// Start message handler in goroutine
+	go wd.handleWebSocketMessages(conn)
+
+	// Start keepalive in goroutine
+	go wd.keepConnectionAlive(conn)
+
+	// Wait for connection to close
+	select {}
 }
 
 // handleWebSocketMessages processes incoming WebSocket messages
@@ -109,7 +119,7 @@ func (wd *WebDashboard) handleWebSocketCommand(conn *websocket.Conn, cmd map[str
 func (wd *WebDashboard) handleSubscription(conn *websocket.Conn, cmd map[string]interface{}) {
 	// Future enhancement: Allow clients to subscribe to specific metrics
 	log.Printf("WebSocket subscription request: %v", cmd)
-}
+
 
 // keepConnectionAlive maintains WebSocket connection with ping/pong
 func (wd *WebDashboard) keepConnectionAlive(conn *websocket.Conn) {
@@ -141,6 +151,25 @@ func (wd *WebDashboard) keepConnectionAlive(conn *websocket.Conn) {
 func (wd *WebDashboard) handleUnsubscription(conn *websocket.Conn, cmd map[string]interface{}) {
 	// Future enhancement: Allow clients to unsubscribe from specific metrics
 	log.Printf("WebSocket unsubscription request: %v", cmd)
+}
+
+// buildMetricsMessage creates a metrics message with current dashboard data
+func (wd *WebDashboard) buildMetricsMessage() map[string]interface{} {
+	wd.mu.RLock()
+	metrics := DashboardMetrics{
+		Timestamp:   time.Now(),
+		GPUMetrics:  wd.lastMetrics,
+		SystemStats: wd.calculateSystemStats(),
+		CostData:    wd.lastCostData,
+		Alerts:      wd.getActiveAlerts(),
+		Performance: wd.calculatePerformanceMetrics(),
+	}
+	wd.mu.RUnlock()
+
+	return map[string]interface{}{
+		"type": "metrics_update",
+		"data": metrics,
+	}
 }
 
 // broadcastToAllConnections sends a message to all connected WebSocket clients
