@@ -1,6 +1,7 @@
 package observability
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"net/http"
@@ -30,10 +31,12 @@ type WebDashboard struct {
 	wsUpgrader    websocket.Upgrader
 
 	// Dashboard state
-	lastMetrics  map[string]gpu.GPUMetrics
-	lastCostData CostSummary
-	systemHealth SystemHealthStatus
-	mu           sync.RWMutex
+	lastMetrics         map[string]gpu.GPUMetrics
+	lastCostData        CostSummary
+	systemHealth        SystemHealthStatus
+	mu                  sync.RWMutex
+	enableRealTimeUpdates bool
+	theme               string
 }
 
 // WebDashboardConfig configures the web dashboard
@@ -130,11 +133,30 @@ func NewWebDashboard(config WebDashboardConfig, monitoringService *MonitoringSer
 		wsConnections:      make(map[*websocket.Conn]bool),
 		wsUpgrader: websocket.Upgrader{
 			CheckOrigin: func(r *http.Request) bool {
-				return true // Allow connections from any origin in development
+				// In production, restrict to allowed origins
+				origin := r.Header.Get("Origin")
+				allowedOrigins := []string{
+					fmt.Sprintf("http://localhost:%d", config.Port),
+					fmt.Sprintf("https://localhost:%d", config.Port),
+					"http://127.0.0.1:" + fmt.Sprint(config.Port),
+					"https://127.0.0.1:" + fmt.Sprint(config.Port),
+				}
+				
+				for _, allowed := range allowedOrigins {
+					if origin == allowed {
+						return true
+					}
+				}
+				
+				// Log rejected origins for security monitoring
+				log.Printf("WebSocket connection rejected from origin: %s", origin)
+				return false
 			},
 		},
-		lastMetrics:  make(map[string]gpu.GPUMetrics),
-		systemHealth: SystemHealthStatus{Status: "healthy", Score: 100},
+		lastMetrics:           make(map[string]gpu.GPUMetrics),
+		enableRealTimeUpdates: config.EnableRealTimeUpdates,
+		theme:                 config.Theme,
+		systemHealth:          SystemHealthStatus{Status: "healthy", Score: 100},
 	}
 
 	wd.setupRouter(config)
@@ -185,10 +207,11 @@ func (wd *WebDashboard) Start() error {
 
 	return wd.server.ListenAndServe()
 }
-
 // Stop stops the web dashboard server
 func (wd *WebDashboard) Stop() error {
-	return wd.server.Shutdown(nil)
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	return wd.server.Shutdown(ctx)
 }
 
 // startMetricsCollection runs background metrics collection
