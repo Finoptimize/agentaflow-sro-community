@@ -137,7 +137,14 @@ func (tgs *TracedGPUScheduler) GetGPUUtilization(ctx context.Context) (float64, 
 
 	start := time.Now()
 	metrics := tgs.scheduler.GetUtilizationMetrics()
-	utilization := metrics["average_utilization"].(float64)
+	val, ok := metrics["average_utilization"]
+	if !ok {
+		return 0, fmt.Errorf("average_utilization key not found in metrics")
+	}
+	utilization, ok := val.(float64)
+	if !ok {
+		return 0, fmt.Errorf("average_utilization value is not a float64")
+	}
 	duration := time.Since(start)
 
 	tgs.tracer.AddSpanAttributes(span,
