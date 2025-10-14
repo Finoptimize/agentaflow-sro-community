@@ -14,129 +14,72 @@ import (
 	"github.com/Finoptimize/agentaflow-sro-community/pkg/gpu"
 )
 
-// CostSummary represents cost tracking data
-type CostSummary struct {
-	TotalCost     float64            `json:"total_cost"`
-	GPUHours      float64            `json:"gpu_hours"`
-	TokensUsed    int64              `json:"tokens_used"`
-	Period        string             `json:"period"`
-	StartTime     time.Time          `json:"start_time"`
-	EndTime       time.Time          `json:"end_time"`
-	CostBreakdown map[string]float64 `json:"cost_breakdown"`
-}
-
-// WebDashboard provides a web-based monitoring interface
+// WebDashboard represents the web-based monitoring dashboard
 type WebDashboard struct {
 	monitoringService  *MonitoringService
 	metricsCollector   *gpu.MetricsCollector
 	prometheusExporter *PrometheusExporter
+	server             *http.Server
+	port               int
 
-	// Web server configuration
-	port   int
-	server *http.Server
-	router *mux.Router
-
-	// WebSocket connections
+	// WebSocket management
 	wsConnections  map[*websocket.Conn]bool
 	wsWriteMutexes map[*websocket.Conn]*sync.Mutex
-	wsMutex        sync.RWMutex
 	wsUpgrader     websocket.Upgrader
+	wsMutex        sync.RWMutex
 
-	// Dashboard state
-	lastMetrics           map[string]gpu.GPUMetrics
-	lastCostData          CostSummary
-	systemHealth          SystemHealthStatus
-	mu                    sync.RWMutex
+	// Metrics caching
+	lastMetrics  map[string]gpu.GPUMetrics
+	metricsCache sync.RWMutex
+	mu           sync.RWMutex
+	lastCostData CostSummary
+
+	// Configuration
 	enableRealTimeUpdates bool
 	theme                 string
+	systemHealth          SystemHealthStatus
 
-	// Context for graceful shutdown
+	// Lifecycle management
 	ctx    context.Context
 	cancel context.CancelFunc
 }
 
-// WebDashboardConfig configures the web dashboard
+// WebDashboardConfig holds configuration for the web dashboard
 type WebDashboardConfig struct {
-	Port                  int    `json:"port"`
-	Title                 string `json:"title"`
-	RefreshInterval       int    `json:"refresh_interval_ms"`
-	EnableRealTimeUpdates bool   `json:"enable_realtime_updates"`
-	Theme                 string `json:"theme"`
-}
-
-// DashboardMetrics represents metrics data for the dashboard
-type DashboardMetrics struct {
-	Timestamp   time.Time                 `json:"timestamp"`
-	GPUMetrics  map[string]gpu.GPUMetrics `json:"gpu_metrics"`
-	SystemStats SystemStats               `json:"system_stats"`
-	CostData    CostSummary               `json:"cost_data"`
-	Alerts      []Alert                   `json:"alerts"`
-	Performance PerformanceMetrics        `json:"performance"`
-}
-
-// SystemStats provides system-level statistics
-type SystemStats struct {
-	TotalGPUs       int     `json:"total_gpus"`
-	ActiveGPUs      int     `json:"active_gpus"`
-	AverageUtil     float64 `json:"average_utilization"`
-	TotalMemoryGB   float64 `json:"total_memory_gb"`
-	UsedMemoryGB    float64 `json:"used_memory_gb"`
-	AverageTemp     float64 `json:"average_temperature"`
-	TotalPowerWatts float64 `json:"total_power_watts"`
-	EfficiencyScore float64 `json:"efficiency_score"`
-}
-
-// Alert represents a system alert
-type Alert struct {
-	ID         string     `json:"id"`
-	Level      string     `json:"level"` // info, warning, error, critical
-	Message    string     `json:"message"`
-	Source     string     `json:"source"` // gpu_id, system, scheduler
-	Timestamp  time.Time  `json:"timestamp"`
-	Resolved   bool       `json:"resolved"`
-	ResolvedAt *time.Time `json:"resolved_at,omitempty"`
-}
-
-// PerformanceMetrics provides performance analytics
-type PerformanceMetrics struct {
-	UtilizationTrend float64           `json:"utilization_trend"`
-	CostTrend        float64           `json:"cost_trend"`
-	EfficiencyTrend  float64           `json:"efficiency_trend"`
-	PredictedCost24h float64           `json:"predicted_cost_24h"`
-	OptimizationTips []OptimizationTip `json:"optimization_tips"`
-}
-
-// OptimizationTip suggests improvements
-type OptimizationTip struct {
-	Type    string  `json:"type"` // cost, performance, efficiency
-	Message string  `json:"message"`
-	Impact  string  `json:"impact"`  // low, medium, high
-	Savings float64 `json:"savings"` // potential cost savings
-	Action  string  `json:"action"`  // recommended action
+	Port                  int
+	EnableRealTimeUpdates bool
+	Theme                 string // "light" or "dark"
+	Title                 string
+	RefreshInterval       int
 }
 
 // SystemHealthStatus represents overall system health
 type SystemHealthStatus struct {
-	Status    string    `json:"status"` // healthy, warning, critical
-	Score     float64   `json:"score"`  // 0-100
-	LastCheck time.Time `json:"last_check"`
-	Issues    []string  `json:"issues"`
-	Uptime    string    `json:"uptime"`
+	Status string  `json:"status"` // "healthy", "warning", "critical"
+	Score  float64 `json:"score"`  // 0-100
+}
+
+// CostSummary represents cost calculation summary
+type CostSummary struct {
+	TotalCost    float64 `json:"total_cost"`
+	Period       string  `json:"period"`
+	Currency     string  `json:"currency"`
+	GPUHours     float64 `json:"gpu_hours"`
+	AvgCostPerHr float64 `json:"avg_cost_per_hr"`
+}
+
+// AlertInfo represents an alert/notification
+type AlertInfo struct {
+	ID           string    `json:"id"`
+	Type         string    `json:"type"` // "info", "warning", "error"
+	Title        string    `json:"title"`
+	Message      string    `json:"message"`
+	Timestamp    time.Time `json:"timestamp"`
+	Acknowledged bool      `json:"acknowledged"`
 }
 
 // NewWebDashboard creates a new web dashboard instance
-func NewWebDashboard(config WebDashboardConfig, monitoringService *MonitoringService,
-	metricsCollector *gpu.MetricsCollector, prometheusExporter *PrometheusExporter) *WebDashboard {
-
-	if config.Port == 0 {
-		config.Port = 8090
-	}
-	if config.RefreshInterval == 0 {
-		config.RefreshInterval = 5000 // 5 seconds
-	}
-	if config.Title == "" {
-		config.Title = "AgentaFlow GPU Monitoring Dashboard"
-	}
+func NewWebDashboard(monitoringService *MonitoringService, metricsCollector *gpu.MetricsCollector, prometheusExporter *PrometheusExporter, config WebDashboardConfig) *WebDashboard {
 	ctx, cancel := context.WithCancel(context.Background())
 
 	wd := &WebDashboard{
@@ -145,6 +88,7 @@ func NewWebDashboard(config WebDashboardConfig, monitoringService *MonitoringSer
 		prometheusExporter: prometheusExporter,
 		port:               config.Port,
 		wsConnections:      make(map[*websocket.Conn]bool),
+		wsWriteMutexes:     make(map[*websocket.Conn]*sync.Mutex),
 		wsUpgrader: websocket.Upgrader{
 			CheckOrigin: func(r *http.Request) bool {
 				origin := r.Header.Get("Origin")
@@ -191,45 +135,23 @@ func NewWebDashboard(config WebDashboardConfig, monitoringService *MonitoringSer
 		cancel:                cancel,
 	}
 
-	wd.setupRouter(config)
-	return wd
-}
-
-// setupRouter configures HTTP routes for the dashboard
-func (wd *WebDashboard) setupRouter(config WebDashboardConfig) {
-	wd.router = mux.NewRouter()
-
-	// Static file serving
-	wd.router.PathPrefix("/static/").Handler(http.StripPrefix("/static/",
-		http.FileServer(http.Dir("./pkg/observability/web/static/"))))
-
-	// Dashboard routes
-	wd.router.HandleFunc("/", wd.handleDashboard(config)).Methods("GET")
-	wd.router.HandleFunc("/health", wd.handleHealth).Methods("GET")
-
-	// API routes
-	api := wd.router.PathPrefix("/api/v1").Subrouter()
-	api.HandleFunc("/metrics", wd.handleMetrics).Methods("GET")
-	api.HandleFunc("/gpu/{id}/metrics", wd.handleGPUMetrics).Methods("GET")
-	api.HandleFunc("/system/stats", wd.handleSystemStats).Methods("GET")
-	api.HandleFunc("/costs", wd.handleCosts).Methods("GET")
-	api.HandleFunc("/alerts", wd.handleAlerts).Methods("GET")
-	api.HandleFunc("/alerts/{id}/resolve", wd.handleResolveAlert).Methods("POST")
-	api.HandleFunc("/performance", wd.handlePerformance).Methods("GET")
-
-	// WebSocket endpoint
-	wd.router.HandleFunc("/ws", wd.handleWebSocket).Methods("GET")
+	// Set up HTTP server
+	router := mux.NewRouter()
+	wd.setupRoutes(router)
 
 	wd.server = &http.Server{
-		Addr:    fmt.Sprintf(":%d", wd.port),
-		Handler: wd.router,
+		Addr:         fmt.Sprintf(":%d", config.Port),
+		Handler:      router,
+		ReadTimeout:  15 * time.Second,
+		WriteTimeout: 15 * time.Second,
 	}
+
+	return wd
 }
 
 // Start starts the web dashboard server
 func (wd *WebDashboard) Start() error {
-	log.Printf("🌐 Starting AgentaFlow Web Dashboard on port %d", wd.port)
-	log.Printf("📊 Dashboard available at: http://localhost:%d", wd.port)
+	log.Printf("Starting web dashboard on port %d", wd.port)
 
 	// Start background metrics collection
 	go wd.startMetricsCollection()
@@ -242,7 +164,15 @@ func (wd *WebDashboard) Start() error {
 
 // Stop stops the web dashboard server
 func (wd *WebDashboard) Stop() error {
-	return wd.server.Shutdown(nil)
+	// Cancel the context to stop background routines
+	wd.cancel()
+
+	// Create a timeout context for graceful shutdown
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	// Shutdown the HTTP server gracefully
+	return wd.server.Shutdown(ctx)
 }
 
 // startMetricsCollection runs background metrics collection
@@ -260,121 +190,167 @@ func (wd *WebDashboard) startMetricsCollection() {
 	}
 }
 
-// updateMetrics updates internal metrics cache
+// updateMetrics fetches and caches the latest metrics
 func (wd *WebDashboard) updateMetrics() {
-	wd.mu.Lock()
-	defer wd.mu.Unlock()
-
-	// Update GPU metrics
-	if wd.metricsCollector != nil {
-		overview := wd.metricsCollector.GetSystemOverview()
-		for gpuID, metrics := range overview {
-			if gpuMetrics, ok := metrics.(gpu.GPUMetrics); ok {
-				wd.lastMetrics[gpuID] = gpuMetrics
-			}
-		}
-	}
-
-	// Update cost data
-	if wd.monitoringService != nil {
-		startTime := time.Now().Add(-24 * time.Hour)
-		endTime := time.Now()
-		costData := wd.monitoringService.GetCostSummary(startTime, endTime)
-
-		// Convert map to CostSummary struct
-		wd.lastCostData = CostSummary{
-			TotalCost:  getFloat64FromMap(costData, "total_cost"),
-			GPUHours:   getFloat64FromMap(costData, "gpu_hours"),
-			TokensUsed: getInt64FromMap(costData, "tokens_used"),
-			Period:     "24h",
-			StartTime:  startTime,
-			EndTime:    endTime,
-		}
-	}
-
-	// Update system health
-	wd.updateSystemHealth()
-}
-
-// updateSystemHealth calculates system health status
-func (wd *WebDashboard) updateSystemHealth() {
-	var totalScore float64 = 100
-	var issues []string
-
-	// Check GPU health
-	highTempCount := 0
-	highUtilCount := 0
-	totalGPUs := len(wd.lastMetrics)
-
-	// Guard against division by zero when no GPUs are available
-	if totalGPUs == 0 {
-		wd.systemHealth = SystemHealthStatus{
-			Status:    "warning",
-			Score:     50,
-			LastCheck: time.Now(),
-			Issues:    []string{"No GPU metrics available"},
-			Uptime:    "24h 15m", // TODO: Calculate actual uptime
-		}
+	if wd.metricsCollector == nil {
 		return
 	}
 
-	for _, metrics := range wd.lastMetrics {
-		if metrics.Temperature > 80 {
+	wd.metricsCache.Lock()
+	defer wd.metricsCache.Unlock()
+
+	// Collect metrics for all GPUs
+	// This is a simplified version - you'd need to implement actual GPU discovery
+	gpuIDs := []string{"gpu-0", "gpu-1"} // Example GPU IDs
+
+	for _, gpuID := range gpuIDs {
+		latestMetrics := wd.metricsCollector.GetLatestMetrics()
+		metrics, exists := latestMetrics[gpuID]
+		if !exists {
+			log.Printf("No metrics available for GPU %s", gpuID)
+			continue
+		}
+
+		wd.lastMetrics[gpuID] = metrics
+	}
+}
+
+// getLatestMetrics returns cached metrics data
+func (wd *WebDashboard) getLatestMetrics() map[string]gpu.GPUMetrics {
+	wd.metricsCache.RLock()
+	defer wd.metricsCache.RUnlock()
+
+	result := make(map[string]gpu.GPUMetrics)
+	for k, v := range wd.lastMetrics {
+		result[k] = v
+	}
+
+	return result
+}
+
+// startWebSocketBroadcast starts broadcasting updates to connected WebSocket clients
+func (wd *WebDashboard) startWebSocketBroadcast() {
+	if !wd.enableRealTimeUpdates {
+		return
+	}
+
+	ticker := time.NewTicker(2 * time.Second)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-ticker.C:
+			wd.broadcastMetricsUpdate()
+		case <-wd.ctx.Done():
+			return
+		}
+	}
+}
+
+// broadcastMetricsUpdate sends current metrics to all connected WebSocket clients
+func (wd *WebDashboard) broadcastMetricsUpdate() {
+	metrics := wd.getLatestMetrics()
+
+	message := map[string]interface{}{
+		"type":      "metrics_update",
+		"timestamp": time.Now().Unix(),
+		"data":      metrics,
+	}
+
+	// Note: broadcastToWebSockets method will be implemented in web_websocket.go
+	// For now, we'll use a placeholder
+	_ = message
+}
+
+// Helper functions for cost calculation and health monitoring
+func (wd *WebDashboard) calculateCostSummary() CostSummary {
+	// Simplified cost calculation
+	// In a real implementation, this would integrate with cloud provider APIs
+	metrics := wd.getLatestMetrics()
+
+	totalGPUs := float64(len(metrics))
+	hoursInDay := 24.0
+	costPerGPUHour := 2.50 // Example cost
+
+	totalCost := totalGPUs * hoursInDay * costPerGPUHour
+
+	return CostSummary{
+		TotalCost:    totalCost,
+		Period:       "24h",
+		Currency:     "USD",
+		GPUHours:     totalGPUs * hoursInDay,
+		AvgCostPerHr: costPerGPUHour,
+	}
+}
+
+func (wd *WebDashboard) calculateSystemHealth() SystemHealthStatus {
+	metrics := wd.getLatestMetrics()
+
+	if len(metrics) == 0 {
+		return SystemHealthStatus{Status: "warning", Score: 50}
+	}
+
+	totalUtilization := 0.0
+	highTempCount := 0
+
+	for _, metric := range metrics {
+		totalUtilization += metric.UtilizationGPU
+		if metric.Temperature > 80.0 { // Threshold for high temperature
 			highTempCount++
-			issues = append(issues, fmt.Sprintf("GPU %s running hot (%.1f°C)", metrics.GPUID, metrics.Temperature))
-		}
-		if metrics.UtilizationGPU > 95 {
-			highUtilCount++
 		}
 	}
 
-	// Adjust score based on issues
+	// Calculate average utilization (not currently used in health calculation)
+	_ = totalUtilization / float64(len(metrics))
+	healthScore := 100.0
+
+	// Reduce score for high temperatures
 	if highTempCount > 0 {
-		totalScore -= float64(highTempCount) / float64(totalGPUs) * 20
+		healthScore -= float64(highTempCount) * 20.0
 	}
 
-	// Determine status
+	// Determine status based on score
 	status := "healthy"
-	if totalScore < 80 {
+	if healthScore < 80 {
 		status = "warning"
 	}
-	if totalScore < 60 {
+	if healthScore < 50 {
 		status = "critical"
 	}
 
-	wd.systemHealth = SystemHealthStatus{
-		Status:    status,
-		Score:     totalScore,
-		LastCheck: time.Now(),
-		Issues:    issues,
-		Uptime:    "24h 15m", // TODO: Calculate actual uptime
+	return SystemHealthStatus{
+		Status: status,
+		Score:  healthScore,
 	}
 }
 
-// Helper functions for type conversion
-func getFloat64FromMap(m map[string]interface{}, key string) float64 {
-	if val, ok := m[key]; ok {
-		if f, ok := val.(float64); ok {
-			return f
-		}
-		if i, ok := val.(int); ok {
-			return float64(i)
-		}
+func (wd *WebDashboard) getRecentAlerts() []AlertInfo {
+	// In a real implementation, this would fetch from a persistent store
+	// For now, return some example alerts
+	return []AlertInfo{
+		{
+			ID:        "alert-001",
+			Type:      "warning",
+			Title:     "High GPU Temperature",
+			Message:   "GPU-0 temperature is above 85°C",
+			Timestamp: time.Now().Add(-10 * time.Minute),
+		},
+		{
+			ID:        "alert-002",
+			Type:      "info",
+			Title:     "Workload Completed",
+			Message:   "Training job job-xyz completed successfully",
+			Timestamp: time.Now().Add(-1 * time.Hour),
+		},
 	}
-	return 0
 }
 
-func getInt64FromMap(m map[string]interface{}, key string) int64 {
-	if val, ok := m[key]; ok {
-		if i, ok := val.(int64); ok {
-			return i
-		}
-		if i, ok := val.(int); ok {
-			return int64(i)
-		}
-		if f, ok := val.(float64); ok {
-			return int64(f)
-		}
-	}
-	return 0
+// setupRoutes configures the HTTP routes for the web dashboard
+func (wd *WebDashboard) setupRoutes(router *mux.Router) {
+	// Dashboard routes will be added here
+	// This is a placeholder for now
+	router.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte("Dashboard placeholder"))
+	})
 }

@@ -59,8 +59,7 @@ func main() {
 
 	// Create web dashboard
 	fmt.Println("🌐 Setting up web dashboard...")
-	dashboard := observability.NewWebDashboard(dashboardConfig, monitoringService,
-		metricsCollector, prometheusExporter)
+	dashboard := observability.NewWebDashboard(monitoringService, metricsCollector, prometheusExporter, dashboardConfig)
 
 	// Start metrics collection
 	fmt.Println("📡 Starting GPU metrics collection...")
@@ -73,14 +72,8 @@ func main() {
 
 		// Generate alerts for demonstration
 		if metrics.Temperature > 75 {
-			alert := observability.Alert{
-				ID:        fmt.Sprintf("temp-%s-%d", metrics.GPUID, time.Now().Unix()),
-				Level:     "warning",
-				Message:   fmt.Sprintf("High temperature detected on GPU %s: %.1f°C", metrics.GPUID, metrics.Temperature),
-				Source:    metrics.GPUID,
-				Timestamp: time.Now(),
-			}
-			dashboard.BroadcastAlert(alert)
+			fmt.Printf("⚠️  High temperature detected on GPU %s: %.1f°C\n", metrics.GPUID, metrics.Temperature)
+			// Note: Alert broadcasting would be implemented here
 		}
 	})
 

@@ -11,6 +11,55 @@ import (
 	"github.com/gorilla/mux"
 )
 
+// DashboardMetrics represents comprehensive dashboard metrics
+type DashboardMetrics struct {
+	Timestamp   time.Time              `json:"timestamp"`
+	GPUMetrics  map[string]interface{} `json:"gpu_metrics"`
+	SystemStats SystemStats            `json:"system_stats"`
+	CostData    CostSummary            `json:"cost_data"`
+	Alerts      []Alert                `json:"alerts"`
+	Performance PerformanceMetrics     `json:"performance"`
+}
+
+// SystemStats represents system-level statistics
+type SystemStats struct {
+	TotalGPUs       int     `json:"total_gpus"`
+	ActiveGPUs      int     `json:"active_gpus"`
+	AverageUtil     float64 `json:"average_utilization"`
+	TotalMemoryGB   float64 `json:"total_memory_gb"`
+	UsedMemoryGB    float64 `json:"used_memory_gb"`
+	AverageTemp     float64 `json:"average_temperature"`
+	TotalPowerWatts float64 `json:"total_power_watts"`
+	EfficiencyScore float64 `json:"efficiency_score"`
+}
+
+// Alert represents an alert condition
+type Alert struct {
+	ID        string    `json:"id"`
+	Level     string    `json:"level"`
+	Message   string    `json:"message"`
+	Source    string    `json:"source"`
+	Timestamp time.Time `json:"timestamp"`
+}
+
+// PerformanceMetrics represents performance analytics
+type PerformanceMetrics struct {
+	UtilizationTrend float64           `json:"utilization_trend"`
+	CostTrend        float64           `json:"cost_trend"`
+	EfficiencyTrend  float64           `json:"efficiency_trend"`
+	PredictedCost24h float64           `json:"predicted_cost_24h"`
+	OptimizationTips []OptimizationTip `json:"optimization_tips"`
+}
+
+// OptimizationTip represents an optimization suggestion
+type OptimizationTip struct {
+	Type    string  `json:"type"`
+	Message string  `json:"message"`
+	Impact  string  `json:"impact"`
+	Savings float64 `json:"savings"`
+	Action  string  `json:"action"`
+}
+
 // handleDashboard serves the main dashboard HTML
 var dashboardTemplate = `<!DOCTYPE html>
 <html><head><title>{{.Title}}</title></head>
@@ -53,9 +102,14 @@ func (wd *WebDashboard) handleMetrics(w http.ResponseWriter, r *http.Request) {
 	wd.mu.RLock()
 	defer wd.mu.RUnlock()
 
+	gpuMetricsInterface := make(map[string]interface{})
+	for k, v := range wd.lastMetrics {
+		gpuMetricsInterface[k] = v
+	}
+
 	metrics := DashboardMetrics{
 		Timestamp:   time.Now(),
-		GPUMetrics:  wd.lastMetrics,
+		GPUMetrics:  gpuMetricsInterface,
 		SystemStats: wd.calculateSystemStats(),
 		CostData:    wd.lastCostData,
 		Alerts:      wd.getActiveAlerts(),
