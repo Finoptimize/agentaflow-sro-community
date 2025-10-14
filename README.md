@@ -371,6 +371,37 @@ The integration includes production-ready dashboards:
 
 For complete setup guide and advanced configuration, see [examples/demo/PROMETHEUS_GRAFANA_DEMO.md](examples/demo/PROMETHEUS_GRAFANA_DEMO.md)
 
+## 🌐 Interactive Web Dashboard
+
+AgentaFlow now includes a **production-ready web dashboard** for real-time GPU monitoring and system analytics.
+
+### 🚀 Quick Start Web Dashboard
+
+```bash
+cd examples/demo/web-dashboard
+go run main.go
+```
+
+**Access the dashboard**: http://localhost:8090
+
+### ✨ Dashboard Features
+
+- **📊 Real-time Monitoring**: Live GPU metrics with WebSocket updates
+- **📈 Interactive Charts**: GPU utilization, temperature, and cost analytics
+- **🎯 System Overview**: Total GPUs, efficiency scoring, and cost tracking
+- **🚨 Alert Management**: Real-time notifications and one-click resolution
+- **📱 Responsive Design**: Optimized for desktop, tablet, and mobile
+- **🔌 API Integration**: REST endpoints for custom integrations
+
+### 🎯 Use Cases
+
+- **Data Center Operations** - Real-time cluster monitoring
+- **Cost Management** - Live cost tracking and optimization
+- **Performance Analysis** - Identify bottlenecks and inefficiencies  
+- **Alert Management** - Proactive issue detection and resolution
+
+For detailed dashboard documentation, see [examples/demo/web-dashboard/README.md](examples/demo/web-dashboard/README.md)
+
 ## 📖 Documentation
 
 For detailed documentation, see [DOCUMENTATION.md](DOCUMENTATION.md)
@@ -412,7 +443,7 @@ Contributions are welcome! This is a community edition focused on providing acce
 - ✅ Real-time GPU metrics collection
 - ✅ **Prometheus/Grafana integration** - Complete monitoring stack with dashboards
 - ✅ **Production-ready observability** - Enterprise-grade metrics export and visualization
-- 🔄 Web dashboard for monitoring
+- ✅ **Web dashboard for monitoring** - Interactive real-time web interface with charts and alerts
 - 🔄 OpenTelemetry support for tracing
 
 ## 🚀 Enterprise Edition (Coming Soon)
