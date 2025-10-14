@@ -5,23 +5,25 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/gorilla/mux"
 )
 
 // handleDashboard serves the main dashboard HTML
-//go:embed templates/dashboard.html
-var dashboardTemplate string
+var dashboardTemplate = `<!DOCTYPE html>
+<html><head><title>{{.Title}}</title></head>
+<body><h1>{{.Title}}</h1><p>Dashboard placeholder</p></body></html>`
 
 func (wd *WebDashboard) handleDashboard(config WebDashboardConfig) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/html")
-		
+
 		// Replace template variables
 		html := strings.ReplaceAll(dashboardTemplate, "{{.Title}}", config.Title)
 		html = strings.ReplaceAll(html, "{{.RefreshInterval}}", strconv.Itoa(config.RefreshInterval))
-		
+
 		w.Write([]byte(html))
 	}
 }

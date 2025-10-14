@@ -37,9 +37,10 @@ type WebDashboard struct {
 	router *mux.Router
 
 	// WebSocket connections
-	wsConnections map[*websocket.Conn]bool
-	wsMutex       sync.RWMutex
-	wsUpgrader    websocket.Upgrader
+	wsConnections  map[*websocket.Conn]bool
+	wsWriteMutexes map[*websocket.Conn]*sync.Mutex
+	wsMutex        sync.RWMutex
+	wsUpgrader     websocket.Upgrader
 
 	// Dashboard state
 	lastMetrics           map[string]gpu.GPUMetrics
@@ -147,7 +148,7 @@ func NewWebDashboard(config WebDashboardConfig, monitoringService *MonitoringSer
 		wsUpgrader: websocket.Upgrader{
 			CheckOrigin: func(r *http.Request) bool {
 				origin := r.Header.Get("Origin")
-				
+
 				// Allow empty origin (some clients don't send it)
 				if origin == "" {
 					return true
@@ -155,7 +156,7 @@ func NewWebDashboard(config WebDashboardConfig, monitoringService *MonitoringSer
 
 				// Extract host from request
 				requestHost := r.Host
-				
+
 				// Build allowed origins list
 				allowedOrigins := []string{
 					// Request host with both HTTP and HTTPS
@@ -188,10 +189,6 @@ func NewWebDashboard(config WebDashboardConfig, monitoringService *MonitoringSer
 		systemHealth:          SystemHealthStatus{Status: "healthy", Score: 100},
 		ctx:                   ctx,
 		cancel:                cancel,
-	}
-
-	wd.setupRouter(config)
-	return wd
 	}
 
 	wd.setupRouter(config)
@@ -235,13 +232,19 @@ func (wd *WebDashboard) Start() error {
 	log.Printf("📊 Dashboard available at: http://localhost:%d", wd.port)
 
 	// Start background metrics collection
+	go wd.startMetricsCollection()
+
+	// Start WebSocket broadcast routine
+	go wd.startWebSocketBroadcast()
+
+	return wd.server.ListenAndServe()
+}
+
 // Stop stops the web dashboard server
 func (wd *WebDashboard) Stop() error {
-	// Cancel background goroutines first
-	wd.cancel()
-	
-	// Then shutdown the HTTP server
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	return wd.server.Shutdown(nil)
+}
+
 // startMetricsCollection runs background metrics collection
 func (wd *WebDashboard) startMetricsCollection() {
 	ticker := time.NewTicker(5 * time.Second)
@@ -254,18 +257,6 @@ func (wd *WebDashboard) startMetricsCollection() {
 		case <-wd.ctx.Done():
 			return
 		}
-	}
-}
-	return wd.server.Shutdown(ctx)
-}
-
-// startMetricsCollection runs background metrics collection
-func (wd *WebDashboard) startMetricsCollection() {
-	ticker := time.NewTicker(5 * time.Second)
-	defer ticker.Stop()
-
-	for range ticker.C {
-		wd.updateMetrics()
 	}
 }
 
