@@ -206,7 +206,7 @@ func (wd *WebDashboard) sendMetricsToConnection(conn *websocket.Conn) {
 		"data": metrics,
 	}
 
-	wd.broadcastToAllConnections(message)
+	wd.sendToConnection(conn, message)
 }
 
 // sendToConnection sends a message to a specific WebSocket connection
