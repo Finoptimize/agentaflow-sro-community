@@ -293,8 +293,16 @@ func (tms *TracedMonitoringService) GetCostSummary(ctx context.Context, startTim
 	summary := tms.monitoring.GetCostSummary(startTime, endTime)
 	duration := time.Since(start)
 
-	totalCost, _ := summary["total_cost"].(float64)
-	gpuHours, _ := summary["gpu_hours"].(float64)
+	totalCost, ok := summary["total_cost"].(float64)
+	if !ok {
+		fmt.Printf("Warning: total_cost is not a float64 or missing in cost summary\n")
+		totalCost = 0
+	}
+	gpuHours, ok := summary["gpu_hours"].(float64)
+	if !ok {
+		fmt.Printf("Warning: gpu_hours is not a float64 or missing in cost summary\n")
+		gpuHours = 0
+	}
 
 	tms.tracer.AddSpanAttributes(span,
 		attribute.Int64("operation.duration_ms", duration.Milliseconds()),
