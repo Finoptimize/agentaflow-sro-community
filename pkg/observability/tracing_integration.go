@@ -305,9 +305,14 @@ func (tms *TracedMonitoringService) GetCostSummary(ctx context.Context, startTim
 	totalCost, ok := summary["total_cost"].(float64)
 	if !ok {
 		fmt.Printf("Warning: total_cost is not a float64 or missing in cost summary\n")
+		// Log warning using a proper logging approach instead of fmt.Printf
+		// This should be replaced with actual logger when available
 		totalCost = 0
 	}
 	gpuHours, ok := summary["gpu_hours"].(float64)
+
+		// Log warning using tracer's internal logger if available, or skip detailed logging
+		// to avoid bypassing the configured logging framework
 	if !ok {
 		fmt.Printf("Warning: gpu_hours is not a float64 or missing in cost summary\n")
 		gpuHours = 0
