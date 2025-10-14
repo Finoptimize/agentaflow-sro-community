@@ -3,6 +3,8 @@ module github.com/Finoptimize/agentaflow-sro-community
 go 1.17
 
 require (
+	github.com/gorilla/mux v1.8.0
+	github.com/gorilla/websocket v1.5.0
 	gopkg.in/yaml.v2 v2.4.0
 	k8s.io/api v0.22.0
 	k8s.io/apimachinery v0.22.0
