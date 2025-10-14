@@ -96,8 +96,14 @@ func (tgs *TracedGPUScheduler) Schedule(ctx context.Context) error {
 
 	// Get queue information before scheduling
 	metrics := tgs.scheduler.GetUtilizationMetrics()
-	queueSize := metrics["pending_workloads"].(int)
-	totalGPUs := metrics["total_gpus"].(int)
+	queueSize, ok := metrics["pending_workloads"].(int)
+	if !ok {
+		queueSize = 0
+	}
+	totalGPUs, ok := metrics["total_gpus"].(int)
+	if !ok {
+		totalGPUs = 0
+	}
 
 	tgs.tracer.AddSpanAttributes(span,
 		attribute.Int("scheduler.queue_size", queueSize),
@@ -110,7 +116,10 @@ func (tgs *TracedGPUScheduler) Schedule(ctx context.Context) error {
 
 	// Get scheduling results
 	metricsAfter := tgs.scheduler.GetUtilizationMetrics()
-	queueSizeAfter := metricsAfter["pending_workloads"].(int)
+	queueSizeAfter, ok := metricsAfter["pending_workloads"].(int)
+	if !ok {
+		queueSizeAfter = 0
+	}
 	scheduledCount := queueSize - queueSizeAfter
 
 	tgs.tracer.AddSpanAttributes(span,
