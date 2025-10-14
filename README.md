@@ -29,9 +29,12 @@ Software that reduces inference costs through better batching, caching, and rout
 - **Cost Reduction**: Minimize inference costs through efficient resource use
 
 ### Observability Tools for AI Systems
-Monitoring, debugging, and cost tracking for LLM applications and training runs:
+Enterprise-grade monitoring, debugging, and cost tracking for LLM applications and training runs:
+- **Prometheus Integration**: Production-ready metrics export with 20+ GPU and cost metrics
+- **Grafana Dashboards**: Pre-built visual analytics for GPU clusters and cost optimization
+- **Real-time Alerting**: Automatic threshold monitoring and notification system
+- **Cost Tracking**: Detailed tracking of GPU hours, tokens, and operational costs with live dashboards
 - **Comprehensive Metrics**: Counters, gauges, and histograms for all operations
-- **Cost Tracking**: Detailed tracking of GPU hours, tokens, and operational costs
 - **Distributed Tracing**: Full request tracing across distributed systems
 - **Debug Utilities**: Multi-level logging with performance analysis
 
@@ -270,6 +273,8 @@ scheduler.SubmitGPUWorkload(workload)
 |-----------|---------|--------|
 | GPU Scheduling | Optimized utilization | Up to 40% reduction in GPU idle time |
 | Real-time Metrics | Live GPU monitoring | Real-time utilization, temperature, power tracking |
+| **Prometheus Integration** | **Enterprise monitoring** | **Production-ready metrics export and alerting** |
+| **Grafana Dashboards** | **Visual analytics** | **Pre-built dashboards for GPU clusters and cost tracking** |
 | GPU Analytics | Performance insights | Efficiency scoring, trend analysis, cost optimization |
 | Kubernetes Integration | Native K8s scheduling | Seamless integration with existing clusters |
 | Request Batching | Improved throughput | 3-5x increase in requests/second |
@@ -296,40 +301,75 @@ agentaflow-sro-community/
 
 ## 🔧 Monitoring & Observability
 
-AgentaFlow provides comprehensive monitoring through Prometheus/Grafana integration:
+AgentaFlow provides **enterprise-grade monitoring** through comprehensive Prometheus/Grafana integration with production-ready dashboards and alerting.
 
-### Quick Start Monitoring
+### 🚀 Quick Start Monitoring
 
-Run the Prometheus/Grafana demo:
+Run the complete Prometheus/Grafana integration demo:
 
 ```bash
 cd examples/demo/prometheus-grafana
 go run main.go
 ```
 
-Access monitoring:
-- **Prometheus Metrics**: http://localhost:8080/metrics
-- **Grafana Dashboard**: Deploy with `kubectl apply -f examples/k8s/monitoring/`
+This starts:
+- **Prometheus metrics server** on http://localhost:8080/metrics
+- **Real-time GPU monitoring** with automatic export
+- **Cost tracking** with live calculations
+- **Performance analytics** and efficiency scoring
 
-### Available Metrics
+### 📊 Production Deployment
 
-- **GPU Metrics**: Utilization, temperature, memory, power consumption
-- **Cost Tracking**: Real-time cost calculation with cloud pricing integration
-- **Workload Metrics**: Job scheduling, queue depth, completion rates
-- **System Health**: Component status, alerts, and performance indicators
-
-### Kubernetes Deployment
+Deploy the full monitoring stack to Kubernetes:
 
 ```bash
-# Deploy monitoring stack
+# Deploy Prometheus and Grafana
 kubectl apply -f examples/k8s/monitoring/prometheus.yaml
 kubectl apply -f examples/k8s/monitoring/grafana.yaml
 
-# Access Grafana (admin/agentaflow123)
+# Access Grafana dashboard (admin/agentaflow123)
 kubectl port-forward svc/grafana-service 3000:3000 -n agentaflow-monitoring
+
+# View Prometheus metrics
+kubectl port-forward svc/prometheus-service 9090:9090 -n agentaflow-monitoring
 ```
 
-For complete monitoring setup, see [examples/demo/PROMETHEUS_GRAFANA_DEMO.md](examples/demo/PROMETHEUS_GRAFANA_DEMO.md)
+### 🎯 Available Metrics & Dashboards
+
+**GPU Performance Metrics:**
+- `agentaflow_gpu_utilization_percent` - Real-time GPU utilization
+- `agentaflow_gpu_memory_used_bytes` - Memory consumption tracking
+- `agentaflow_gpu_temperature_celsius` - Thermal monitoring
+- `agentaflow_gpu_power_draw_watts` - Power consumption tracking
+- `agentaflow_gpu_fan_speed_percent` - Cooling system status
+
+**Cost & Efficiency Analytics:**
+- `agentaflow_cost_total_dollars` - Real-time cost tracking
+- `agentaflow_gpu_efficiency_score` - Efficiency scoring (0-100)
+- `agentaflow_gpu_idle_time_percent` - Resource waste tracking
+- `agentaflow_cost_per_hour` - Live hourly cost calculation
+
+**Workload & Scheduling Metrics:**
+- `agentaflow_workloads_pending` - Job queue depth
+- `agentaflow_workloads_completed_total` - Completion tracking
+- `agentaflow_scheduler_decisions_total` - Scheduling decisions
+- `agentaflow_gpu_assignments_total` - Resource assignments
+
+**System Health & Alerts:**
+- Component status monitoring
+- Automatic threshold alerts
+- Performance trend analysis
+- Resource utilization forecasting
+
+### 📈 Pre-built Grafana Dashboards
+
+The integration includes production-ready dashboards:
+- **GPU Cluster Overview** - Multi-node GPU monitoring
+- **Cost Analysis Dashboard** - Real-time cost tracking and forecasting
+- **Performance Analytics** - Efficiency scoring and optimization insights
+- **Alert Management** - Threshold monitoring and notifications
+
+For complete setup guide and advanced configuration, see [examples/demo/PROMETHEUS_GRAFANA_DEMO.md](examples/demo/PROMETHEUS_GRAFANA_DEMO.md)
 
 ## 📖 Documentation
 
@@ -370,9 +410,10 @@ Contributions are welcome! This is a community edition focused on providing acce
 
 - ✅ Kubernetes integration for GPU scheduling
 - ✅ Real-time GPU metrics collection
-- Prometheus/Grafana integration
-- Web dashboard for monitoring
-- OpenTelemetry support for tracing
+- ✅ **Prometheus/Grafana integration** - Complete monitoring stack with dashboards
+- ✅ **Production-ready observability** - Enterprise-grade metrics export and visualization
+- 🔄 Web dashboard for monitoring
+- 🔄 OpenTelemetry support for tracing
 
 ## 🚀 Enterprise Edition (Coming Soon)
 
