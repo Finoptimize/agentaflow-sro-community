@@ -142,8 +142,10 @@ func main() {
 	// Stop metrics collection
 	metricsCollector.Stop()
 
-	// Stop dashboard
-	dashboard.Stop()
+	// Stop dashboard with timeout
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	dashboard.Stop(ctx)
 
 	fmt.Println("✅ Demo stopped successfully!")
 }
