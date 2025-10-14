@@ -4,11 +4,11 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
+	"sync"
 	"time"
 
 	"github.com/gorilla/websocket"
 )
-
 // handleWebSocket handles WebSocket connections for real-time updates
 func (wd *WebDashboard) handleWebSocket(w http.ResponseWriter, r *http.Request) {
 	conn, err := wd.wsUpgrader.Upgrade(w, r, nil)
@@ -18,9 +18,15 @@ func (wd *WebDashboard) handleWebSocket(w http.ResponseWriter, r *http.Request) 
 	}
 	defer conn.Close()
 
-	// Register connection
+	// Register connection with write mutex
+	connMutex := &sync.Mutex{}
 	wd.wsMutex.Lock()
 	wd.wsConnections[conn] = true
+	if wd.wsWriteMutexes == nil {
+		wd.wsWriteMutexes = make(map[*websocket.Conn]*sync.Mutex)
+	}
+	wd.wsWriteMutexes[conn] = connMutex
+	wd.wsMutex.Unlock()
 	wd.wsMutex.Unlock()
 
 	log.Printf("New WebSocket connection established from %s", r.RemoteAddr)
@@ -28,15 +34,17 @@ func (wd *WebDashboard) handleWebSocket(w http.ResponseWriter, r *http.Request) 
 	// Send initial metrics data
 	wd.sendMetricsToConnection(conn)
 
-	// Handle incoming messages (for future interactive features)
-	go wd.handleWebSocketMessages(conn)
-
-	// Keep connection alive with ping/pong
-	wd.keepConnectionAlive(conn)
-
 	// Clean up when connection closes
 	wd.wsMutex.Lock()
 	delete(wd.wsConnections, conn)
+	delete(wd.wsWriteMutexes, conn)
+	wd.wsMutex.Unlock()
+
+	log.Printf("WebSocket connection closed from %s", r.RemoteAddr)
+}
+	wd.wsMutex.Lock()
+	delete(wd.wsConnections, conn)
+	delete(wd.wsWriteMutexes, conn)
 	wd.wsMutex.Unlock()
 
 	log.Printf("WebSocket connection closed from %s", r.RemoteAddr)
@@ -44,6 +52,16 @@ func (wd *WebDashboard) handleWebSocket(w http.ResponseWriter, r *http.Request) 
 
 // handleWebSocketMessages processes incoming WebSocket messages
 func (wd *WebDashboard) handleWebSocketMessages(conn *websocket.Conn) {
+	// Set read limit to prevent memory exhaustion attacks
+	conn.SetReadLimit(64 * 1024) // 64KB limit
+	
+	// Set initial read deadline and pong handler for keepalive
+	conn.SetReadDeadline(time.Now().Add(60 * time.Second))
+	conn.SetPongHandler(func(string) error {
+		conn.SetReadDeadline(time.Now().Add(60 * time.Second))
+		return nil
+	})
+	
 	defer func() {
 		if r := recover(); r != nil {
 			log.Printf("WebSocket message handler panic: %v", r)
@@ -99,18 +117,31 @@ func (wd *WebDashboard) handleSubscription(conn *websocket.Conn, cmd map[string]
 	// Future enhancement: Allow clients to subscribe to specific metrics
 	log.Printf("WebSocket subscription request: %v", cmd)
 }
-
-// handleUnsubscription handles metric unsubscription requests
-func (wd *WebDashboard) handleUnsubscription(conn *websocket.Conn, cmd map[string]interface{}) {
-	// Future enhancement: Allow clients to unsubscribe from specific metrics
-	log.Printf("WebSocket unsubscription request: %v", cmd)
-}
-
 // keepConnectionAlive maintains WebSocket connection with ping/pong
 func (wd *WebDashboard) keepConnectionAlive(conn *websocket.Conn) {
 	ticker := time.NewTicker(30 * time.Second)
 	defer ticker.Stop()
 
+	for range ticker.C {
+		wd.wsMutex.RLock()
+		writeMutex, exists := wd.wsWriteMutexes[conn]
+		wd.wsMutex.RUnlock()
+		
+		if !exists {
+			break
+		}
+		
+		writeMutex.Lock()
+		conn.SetWriteDeadline(time.Now().Add(10 * time.Second))
+		err := conn.WriteMessage(websocket.PingMessage, nil)
+		writeMutex.Unlock()
+		
+		if err != nil {
+			log.Printf("WebSocket ping error: %v", err)
+			break
+		}
+	}
+}
 	for range ticker.C {
 		if err := conn.WriteMessage(websocket.PingMessage, nil); err != nil {
 			log.Printf("WebSocket ping error: %v", err)
@@ -165,27 +196,41 @@ func (wd *WebDashboard) sendMetricsToConnection(conn *websocket.Conn) {
 
 	message := map[string]interface{}{
 		"type": "metrics_update",
-		"data": metrics,
-	}
-
-	wd.sendToConnection(conn, message)
-}
-
-// broadcastToAllConnections sends a message to all connected WebSocket clients
-func (wd *WebDashboard) broadcastToAllConnections(message interface{}) {
-	wd.wsMutex.RLock()
-	connections := make([]*websocket.Conn, 0, len(wd.wsConnections))
-	for conn := range wd.wsConnections {
-		connections = append(connections, conn)
-	}
-	wd.wsMutex.RUnlock()
-
-	for _, conn := range connections {
-		wd.sendToConnection(conn, message)
-	}
-}
-
 // sendToConnection sends a message to a specific WebSocket connection
+func (wd *WebDashboard) sendToConnection(conn *websocket.Conn, message interface{}) {
+	defer func() {
+		if r := recover(); r != nil {
+			log.Printf("WebSocket send panic: %v", r)
+			// Remove failed connection
+			wd.wsMutex.Lock()
+			delete(wd.wsConnections, conn)
+			delete(wd.wsWriteMutexes, conn)
+			wd.wsMutex.Unlock()
+		}
+	}()
+
+	wd.wsMutex.RLock()
+	writeMutex, exists := wd.wsWriteMutexes[conn]
+	wd.wsMutex.RUnlock()
+	
+	if !exists {
+		return
+	}
+
+	writeMutex.Lock()
+	conn.SetWriteDeadline(time.Now().Add(10 * time.Second))
+	err := conn.WriteJSON(message)
+	writeMutex.Unlock()
+	
+	if err != nil {
+		log.Printf("WebSocket write error: %v", err)
+		// Remove failed connection
+		wd.wsMutex.Lock()
+		delete(wd.wsConnections, conn)
+		delete(wd.wsWriteMutexes, conn)
+		wd.wsMutex.Unlock()
+	}
+}
 func (wd *WebDashboard) sendToConnection(conn *websocket.Conn, message interface{}) {
 	defer func() {
 		if r := recover(); r != nil {

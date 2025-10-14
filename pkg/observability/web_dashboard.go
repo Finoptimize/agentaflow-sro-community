@@ -48,6 +48,10 @@ type WebDashboard struct {
 	mu                    sync.RWMutex
 	enableRealTimeUpdates bool
 	theme                 string
+
+	// Context for graceful shutdown
+	ctx    context.Context
+	cancel context.CancelFunc
 }
 
 // WebDashboardConfig configures the web dashboard
@@ -132,9 +136,7 @@ func NewWebDashboard(config WebDashboardConfig, monitoringService *MonitoringSer
 	if config.Title == "" {
 		config.Title = "AgentaFlow GPU Monitoring Dashboard"
 	}
-	if config.Theme == "" {
-		config.Theme = "dark"
-	}
+	ctx, cancel := context.WithCancel(context.Background())
 
 	wd := &WebDashboard{
 		monitoringService:  monitoringService,
@@ -144,14 +146,30 @@ func NewWebDashboard(config WebDashboardConfig, monitoringService *MonitoringSer
 		wsConnections:      make(map[*websocket.Conn]bool),
 		wsUpgrader: websocket.Upgrader{
 			CheckOrigin: func(r *http.Request) bool {
-				// In production, restrict to allowed origins
 				origin := r.Header.Get("Origin")
+				
+				// Allow empty origin (some clients don't send it)
+				if origin == "" {
+					return true
+				}
+
+				// Extract host from request
+				requestHost := r.Host
+				
+				// Build allowed origins list
 				allowedOrigins := []string{
+					// Request host with both HTTP and HTTPS
+					fmt.Sprintf("http://%s", requestHost),
+					fmt.Sprintf("https://%s", requestHost),
+					// Common localhost variations
 					fmt.Sprintf("http://localhost:%d", config.Port),
 					fmt.Sprintf("https://localhost:%d", config.Port),
-					"http://127.0.0.1:" + fmt.Sprint(config.Port),
-					"https://127.0.0.1:" + fmt.Sprint(config.Port),
+					fmt.Sprintf("http://127.0.0.1:%d", config.Port),
+					fmt.Sprintf("https://127.0.0.1:%d", config.Port),
 				}
+
+				// TODO: Make this configurable via WebDashboardConfig
+				// Add any additional allowed origins from config here
 
 				for _, allowed := range allowedOrigins {
 					if origin == allowed {
@@ -160,7 +178,7 @@ func NewWebDashboard(config WebDashboardConfig, monitoringService *MonitoringSer
 				}
 
 				// Log rejected origins for security monitoring
-				log.Printf("WebSocket connection rejected from origin: %s", origin)
+				log.Printf("WebSocket connection rejected from origin: %s (request host: %s)", origin, requestHost)
 				return false
 			},
 		},
@@ -168,6 +186,12 @@ func NewWebDashboard(config WebDashboardConfig, monitoringService *MonitoringSer
 		enableRealTimeUpdates: config.EnableRealTimeUpdates,
 		theme:                 config.Theme,
 		systemHealth:          SystemHealthStatus{Status: "healthy", Score: 100},
+		ctx:                   ctx,
+		cancel:                cancel,
+	}
+
+	wd.setupRouter(config)
+	return wd
 	}
 
 	wd.setupRouter(config)
@@ -211,18 +235,27 @@ func (wd *WebDashboard) Start() error {
 	log.Printf("📊 Dashboard available at: http://localhost:%d", wd.port)
 
 	// Start background metrics collection
-	go wd.startMetricsCollection()
-
-	// Start WebSocket broadcast routine
-	go wd.startWebSocketBroadcast()
-
-	return wd.server.ListenAndServe()
-}
-
 // Stop stops the web dashboard server
 func (wd *WebDashboard) Stop() error {
+	// Cancel background goroutines first
+	wd.cancel()
+	
+	// Then shutdown the HTTP server
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-	defer cancel()
+// startMetricsCollection runs background metrics collection
+func (wd *WebDashboard) startMetricsCollection() {
+	ticker := time.NewTicker(5 * time.Second)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-ticker.C:
+			wd.updateMetrics()
+		case <-wd.ctx.Done():
+			return
+		}
+	}
+}
 	return wd.server.Shutdown(ctx)
 }
 
@@ -281,6 +314,18 @@ func (wd *WebDashboard) updateSystemHealth() {
 	highTempCount := 0
 	highUtilCount := 0
 	totalGPUs := len(wd.lastMetrics)
+
+	// Guard against division by zero when no GPUs are available
+	if totalGPUs == 0 {
+		wd.systemHealth = SystemHealthStatus{
+			Status:    "warning",
+			Score:     50,
+			LastCheck: time.Now(),
+			Issues:    []string{"No GPU metrics available"},
+			Uptime:    "24h 15m", // TODO: Calculate actual uptime
+		}
+		return
+	}
 
 	for _, metrics := range wd.lastMetrics {
 		if metrics.Temperature > 80 {
