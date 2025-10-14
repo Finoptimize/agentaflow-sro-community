@@ -61,7 +61,8 @@ import (
 	router := mux.NewRouter()
 	
 	// Wrap router with tracing middleware
-	tracedRouter := tracingService.TraceMiddleware()(router)	// Add health check endpoint with custom tracing
+	tracedRouter := tracingService.TraceMiddleware()(router)
+    // Add health check endpoint with custom tracing
 	router.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
 		_, span := tracingService.TraceAPIRequest(ctx, "health_check", "/health")
