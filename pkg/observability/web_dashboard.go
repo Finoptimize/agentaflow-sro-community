@@ -14,6 +14,17 @@ import (
 	"github.com/Finoptimize/agentaflow-sro-community/pkg/gpu"
 )
 
+// CostSummary represents cost tracking data
+type CostSummary struct {
+	TotalCost     float64            `json:"total_cost"`
+	GPUHours      float64            `json:"gpu_hours"`
+	TokensUsed    int64              `json:"tokens_used"`
+	Period        string             `json:"period"`
+	StartTime     time.Time          `json:"start_time"`
+	EndTime       time.Time          `json:"end_time"`
+	CostBreakdown map[string]float64 `json:"cost_breakdown"`
+}
+
 // WebDashboard provides a web-based monitoring interface
 type WebDashboard struct {
 	monitoringService  *MonitoringService
@@ -31,12 +42,12 @@ type WebDashboard struct {
 	wsUpgrader    websocket.Upgrader
 
 	// Dashboard state
-	lastMetrics         map[string]gpu.GPUMetrics
-	lastCostData        CostSummary
-	systemHealth        SystemHealthStatus
-	mu                  sync.RWMutex
+	lastMetrics           map[string]gpu.GPUMetrics
+	lastCostData          CostSummary
+	systemHealth          SystemHealthStatus
+	mu                    sync.RWMutex
 	enableRealTimeUpdates bool
-	theme               string
+	theme                 string
 }
 
 // WebDashboardConfig configures the web dashboard
@@ -141,13 +152,13 @@ func NewWebDashboard(config WebDashboardConfig, monitoringService *MonitoringSer
 					"http://127.0.0.1:" + fmt.Sprint(config.Port),
 					"https://127.0.0.1:" + fmt.Sprint(config.Port),
 				}
-				
+
 				for _, allowed := range allowedOrigins {
 					if origin == allowed {
 						return true
 					}
 				}
-				
+
 				// Log rejected origins for security monitoring
 				log.Printf("WebSocket connection rejected from origin: %s", origin)
 				return false
@@ -207,6 +218,7 @@ func (wd *WebDashboard) Start() error {
 
 	return wd.server.ListenAndServe()
 }
+
 // Stop stops the web dashboard server
 func (wd *WebDashboard) Stop() error {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
@@ -243,7 +255,17 @@ func (wd *WebDashboard) updateMetrics() {
 	if wd.monitoringService != nil {
 		startTime := time.Now().Add(-24 * time.Hour)
 		endTime := time.Now()
-		wd.lastCostData = wd.monitoringService.GetCostSummary(startTime, endTime)
+		costData := wd.monitoringService.GetCostSummary(startTime, endTime)
+
+		// Convert map to CostSummary struct
+		wd.lastCostData = CostSummary{
+			TotalCost:  getFloat64FromMap(costData, "total_cost"),
+			GPUHours:   getFloat64FromMap(costData, "gpu_hours"),
+			TokensUsed: getInt64FromMap(costData, "tokens_used"),
+			Period:     "24h",
+			StartTime:  startTime,
+			EndTime:    endTime,
+		}
 	}
 
 	// Update system health
@@ -291,4 +313,32 @@ func (wd *WebDashboard) updateSystemHealth() {
 		Issues:    issues,
 		Uptime:    "24h 15m", // TODO: Calculate actual uptime
 	}
+}
+
+// Helper functions for type conversion
+func getFloat64FromMap(m map[string]interface{}, key string) float64 {
+	if val, ok := m[key]; ok {
+		if f, ok := val.(float64); ok {
+			return f
+		}
+		if i, ok := val.(int); ok {
+			return float64(i)
+		}
+	}
+	return 0
+}
+
+func getInt64FromMap(m map[string]interface{}, key string) int64 {
+	if val, ok := m[key]; ok {
+		if i, ok := val.(int64); ok {
+			return i
+		}
+		if i, ok := val.(int); ok {
+			return int64(i)
+		}
+		if f, ok := val.(float64); ok {
+			return int64(f)
+		}
+	}
+	return 0
 }
