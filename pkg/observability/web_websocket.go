@@ -28,7 +28,6 @@ func (wd *WebDashboard) handleWebSocket(w http.ResponseWriter, r *http.Request) 
 	}
 	wd.wsWriteMutexes[conn] = connMutex
 	wd.wsMutex.Unlock()
-	wd.wsMutex.Unlock()
 
 	log.Printf("New WebSocket connection established from %s", r.RemoteAddr)
 
