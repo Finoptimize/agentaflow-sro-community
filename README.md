@@ -458,7 +458,7 @@ Contributions are welcome! This is a community edition focused on providing acce
 - ✅ **Prometheus/Grafana integration** - Complete monitoring stack with dashboards
 - ✅ **Production-ready observability** - Enterprise-grade metrics export and visualization
 - ✅ **Web dashboard for monitoring** - Interactive real-time web interface with charts and alerts
-- 🔄 OpenTelemetry support for tracing
+- ✅ **OpenTelemetry distributed tracing** - Complete tracing integration with Jaeger/OTLP support
 
 ## 🚀 Enterprise Edition (Coming Soon)
 
