@@ -13,7 +13,9 @@ import (
 	
 	"github.com/Finoptimize/agentaflow-sro-community/pkg/gpu"
 	"github.com/Finoptimize/agentaflow-sro-community/pkg/observability"
-)func main() {
+)
+
+func main() {
 	fmt.Println("🚀 AgentaFlow SRO Community Edition with OpenTelemetry Tracing")
 
 	// Initialize tracing
