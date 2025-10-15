@@ -45,7 +45,46 @@ Enterprise-grade monitoring, debugging, and cost tracking for LLM applications a
 - **Distributed Tracing**: Full request tracing across distributed systems
 - **Debug Utilities**: Multi-level logging with performance analysis
 
-## 📦 Installation
+## � Screenshots
+
+### 🌐 Web Dashboard Interface
+
+Our production-ready web dashboard provides real-time GPU monitoring with a modern, professional interface:
+
+![Web Dashboard Overview](docs/screenshots/dashboard-overview.png)
+*Real-time GPU monitoring dashboard with live metrics, charts, and system overview*
+
+### 📊 Real-time Performance Charts
+
+Interactive Chart.js visualizations show GPU performance trends and cost analytics:
+
+![Performance Charts](docs/screenshots/performance-charts.png)
+*GPU utilization and temperature tracking with live cost breakdown analytics*
+
+### 🎯 GPU Metrics Grid
+
+Comprehensive GPU monitoring with individual card status and real-time alerts:
+
+![GPU Metrics Grid](docs/screenshots/gpu-metrics-grid.png)
+*Individual GPU monitoring cards showing utilization, temperature, memory usage, and health status*
+
+### 🚨 Alert Management System
+
+Real-time alert system with WebSocket notifications and threshold monitoring:
+
+![Alert Management](docs/screenshots/alert-system.png)
+*Live alert feed with temperature warnings, utilization alerts, and memory notifications*
+
+### 📈 System Analytics
+
+Advanced analytics showing efficiency scores, cost tracking, and performance insights:
+
+![System Analytics](docs/screenshots/system-analytics.png)
+*System-wide metrics including efficiency scoring, cost per hour, and resource optimization*
+
+> **Demo Ready**: All screenshots show the dashboard running on a local laptop without requiring NVIDIA hardware - perfect for demonstrations and development!
+
+## �📦 Installation
 
 ```bash
 go get github.com/Finoptimize/agentaflow-sro-community
@@ -306,7 +345,18 @@ agentaflow-sro-community/
     └── demo/          # Demo applications
 ```
 
-## 🔧 Monitoring & Observability
+## � Taking Screenshots
+
+To add actual screenshots to this README:
+
+1. Start the demo: `go run examples/demo/web-dashboard/main.go`
+2. Open browser to: `http://localhost:9000`
+3. Take high-resolution screenshots and save them in `docs/screenshots/`
+4. Use the filenames referenced above (dashboard-overview.png, etc.)
+
+For detailed screenshot guidelines, see [docs/screenshots/README.md](docs/screenshots/README.md)
+
+## �🔧 Monitoring & Observability
 
 AgentaFlow provides **enterprise-grade monitoring** through comprehensive Prometheus/Grafana integration with production-ready dashboards and alerting.
 

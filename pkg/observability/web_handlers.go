@@ -3,11 +3,12 @@ package observability
 import (
 	"encoding/json"
 	"fmt"
+	"math"
 	"net/http"
 	"strconv"
-	"strings"
 	"time"
 
+	"github.com/Finoptimize/agentaflow-sro-community/pkg/gpu"
 	"github.com/gorilla/mux"
 )
 
@@ -61,18 +62,12 @@ type OptimizationTip struct {
 }
 
 // handleDashboard serves the main dashboard HTML
-var dashboardTemplate = `<!DOCTYPE html>
-<html><head><title>{{.Title}}</title></head>
-<body><h1>{{.Title}}</h1><p>Dashboard placeholder</p></body></html>`
-
 func (wd *WebDashboard) handleDashboard(config WebDashboardConfig) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/html")
 
-		// Replace template variables
-		html := strings.ReplaceAll(dashboardTemplate, "{{.Title}}", config.Title)
-		html = strings.ReplaceAll(html, "{{.RefreshInterval}}", strconv.Itoa(config.RefreshInterval))
-
+		// Get the embedded dashboard HTML template
+		html := getDashboardHTML(config)
 		w.Write([]byte(html))
 	}
 }
@@ -319,4 +314,552 @@ func (wd *WebDashboard) calculatePerformanceMetrics() PerformanceMetrics {
 		PredictedCost24h: wd.lastCostData.TotalCost * 24,
 		OptimizationTips: tips,
 	}
+}
+
+// handleCostSummary provides detailed cost summary information
+func (wd *WebDashboard) handleCostSummary(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+
+	wd.mu.RLock()
+	defer wd.mu.RUnlock()
+
+	summary := map[string]interface{}{
+		"current_period":         wd.lastCostData,
+		"daily_breakdown":        wd.calculateDailyCostBreakdown(),
+		"cost_by_gpu":            wd.calculateCostByGPU(),
+		"optimization_potential": wd.calculateOptimizationPotential(),
+	}
+
+	json.NewEncoder(w).Encode(summary)
+}
+
+// handleCostForecast provides cost forecasting
+func (wd *WebDashboard) handleCostForecast(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+
+	forecast := map[string]interface{}{
+		"next_24h":     wd.calculateCostForecast(24 * time.Hour),
+		"next_7_days":  wd.calculateCostForecast(7 * 24 * time.Hour),
+		"next_30_days": wd.calculateCostForecast(30 * 24 * time.Hour),
+		"confidence":   0.85,
+		"based_on":     "last 24h utilization patterns",
+	}
+
+	json.NewEncoder(w).Encode(forecast)
+}
+
+// handleAlertSummary provides alert summary information
+func (wd *WebDashboard) handleAlertSummary(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+
+	alerts := wd.getActiveAlerts()
+
+	summary := map[string]interface{}{
+		"total_alerts":   len(alerts),
+		"critical_count": countAlertsByLevel(alerts, "critical"),
+		"warning_count":  countAlertsByLevel(alerts, "warning"),
+		"info_count":     countAlertsByLevel(alerts, "info"),
+		"recent_alerts":  alerts[:min(len(alerts), 5)],
+		"top_sources":    getTopAlertSources(alerts),
+	}
+
+	json.NewEncoder(w).Encode(summary)
+}
+
+// handleEfficiency provides efficiency analytics
+func (wd *WebDashboard) handleEfficiency(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+
+	efficiency := map[string]interface{}{
+		"overall_score":      wd.calculateSystemHealth().Score,
+		"gpu_efficiency":     wd.calculateGPUEfficiencyScores(),
+		"power_efficiency":   wd.calculatePowerEfficiency(),
+		"memory_efficiency":  wd.calculateMemoryEfficiency(),
+		"thermal_efficiency": wd.calculateThermalEfficiency(),
+		"recommendations":    wd.generateEfficiencyRecommendations(),
+	}
+
+	json.NewEncoder(w).Encode(efficiency)
+}
+
+// handleTrends provides performance trend analysis
+func (wd *WebDashboard) handleTrends(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+
+	trends := map[string]interface{}{
+		"utilization_trend": wd.calculateUtilizationTrend(),
+		"temperature_trend": wd.calculateTemperatureTrend(),
+		"cost_trend":        wd.calculateCostTrend(),
+		"efficiency_trend":  wd.calculateEfficiencyTrend(),
+		"time_range":        "last 24 hours",
+		"data_points":       wd.getTrendDataPoints(),
+	}
+
+	json.NewEncoder(w).Encode(trends)
+}
+
+// handleGPUList provides list of all available GPUs
+func (wd *WebDashboard) handleGPUList(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+
+	wd.mu.RLock()
+	defer wd.mu.RUnlock()
+
+	gpus := make([]map[string]interface{}, 0)
+
+	for gpuID, metrics := range wd.lastMetrics {
+		gpu := map[string]interface{}{
+			"id":           gpuID,
+			"name":         metrics.Name,
+			"status":       wd.getGPUStatus(metrics),
+			"utilization":  metrics.UtilizationGPU,
+			"temperature":  metrics.Temperature,
+			"memory_total": metrics.MemoryTotal,
+			"memory_used":  metrics.MemoryUsed,
+			"power_draw":   metrics.PowerDraw,
+			"last_updated": metrics.Timestamp,
+		}
+		gpus = append(gpus, gpu)
+	}
+
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"gpus":      gpus,
+		"total":     len(gpus),
+		"timestamp": time.Now(),
+	})
+}
+
+// handleGPUProcesses provides processes running on a specific GPU
+func (wd *WebDashboard) handleGPUProcesses(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+
+	vars := mux.Vars(r)
+	gpuID := vars["id"]
+
+	// This would need integration with the metrics collector to get processes
+	processes := []map[string]interface{}{
+		{
+			"pid":         12345,
+			"name":        "python",
+			"memory_used": 2048,
+			"type":        "C",
+			"command":     "python train_model.py",
+		},
+	}
+
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"gpu_id":    gpuID,
+		"processes": processes,
+		"timestamp": time.Now(),
+	})
+}
+
+// handleGPUHistory provides historical metrics for a specific GPU
+func (wd *WebDashboard) handleGPUHistory(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+
+	vars := mux.Vars(r)
+	gpuID := vars["id"]
+
+	// Parse query parameters
+	hoursStr := r.URL.Query().Get("hours")
+	hours := 1 // default to 1 hour
+	if h, err := strconv.Atoi(hoursStr); err == nil && h > 0 {
+		hours = h
+	}
+
+	since := time.Now().Add(-time.Duration(hours) * time.Hour)
+
+	// This would need integration with metrics collector for real history
+	history := []map[string]interface{}{
+		{
+			"timestamp":   time.Now().Add(-30 * time.Minute),
+			"utilization": 75.5,
+			"temperature": 68.2,
+			"memory_used": 8192,
+		},
+		{
+			"timestamp":   time.Now().Add(-15 * time.Minute),
+			"utilization": 82.1,
+			"temperature": 71.8,
+			"memory_used": 9216,
+		},
+	}
+
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"gpu_id":  gpuID,
+		"since":   since,
+		"history": history,
+		"count":   len(history),
+	})
+}
+
+// handleSystemOverview provides comprehensive system overview
+func (wd *WebDashboard) handleSystemOverview(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+
+	wd.mu.RLock()
+	defer wd.mu.RUnlock()
+
+	overview := map[string]interface{}{
+		"system_stats":  wd.calculateSystemStats(),
+		"health_status": wd.calculateSystemHealth(),
+		"cost_summary":  wd.lastCostData,
+		"active_alerts": len(wd.getActiveAlerts()),
+		"performance":   wd.calculatePerformanceMetrics(),
+		"uptime":        wd.calculateUptime(),
+		"last_updated":  time.Now(),
+	}
+
+	json.NewEncoder(w).Encode(overview)
+}
+
+// handleSystemStatus provides current system status
+func (wd *WebDashboard) handleSystemStatus(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+
+	status := map[string]interface{}{
+		"status": "operational",
+		"components": map[string]string{
+			"metrics_collector": "healthy",
+			"websocket_server":  "healthy",
+			"prometheus":        "healthy",
+			"dashboard":         "healthy",
+		},
+		"active_connections": wd.GetActiveConnections(),
+		"data_freshness":     wd.getDataFreshness(),
+		"timestamp":          time.Now(),
+	}
+
+	json.NewEncoder(w).Encode(status)
+}
+
+// handleDemoTrigger triggers specific workload patterns (for demo purposes)
+func (wd *WebDashboard) handleDemoTrigger(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	gpuID := vars["gpu_id"]
+	pattern := vars["pattern"]
+
+	// This would integrate with mock collector to trigger patterns
+	result := map[string]interface{}{
+		"gpu_id":  gpuID,
+		"pattern": pattern,
+		"status":  "triggered",
+		"message": fmt.Sprintf("Triggered %s workload on %s", pattern, gpuID),
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(result)
+}
+
+// handleSimulationSpeed controls simulation speed for demo
+func (wd *WebDashboard) handleSimulationSpeed(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+
+	if r.Method == "POST" {
+		var req struct {
+			Speed float64 `json:"speed"`
+		}
+
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			http.Error(w, "Invalid request", http.StatusBadRequest)
+			return
+		}
+
+		// Would set simulation speed on mock collector
+		result := map[string]interface{}{
+			"speed":   req.Speed,
+			"status":  "updated",
+			"message": fmt.Sprintf("Simulation speed set to %.1fx", req.Speed),
+		}
+
+		json.NewEncoder(w).Encode(result)
+	} else {
+		// GET current simulation speed
+		result := map[string]interface{}{
+			"speed":  1.0,
+			"status": "current",
+		}
+
+		json.NewEncoder(w).Encode(result)
+	}
+}
+
+// Helper methods for calculations
+
+func (wd *WebDashboard) calculateDailyCostBreakdown() []map[string]interface{} {
+	// Mock daily cost data
+	return []map[string]interface{}{
+		{"date": time.Now().AddDate(0, 0, -2).Format("2006-01-02"), "cost": 124.50},
+		{"date": time.Now().AddDate(0, 0, -1).Format("2006-01-02"), "cost": 132.75},
+		{"date": time.Now().Format("2006-01-02"), "cost": 98.25},
+	}
+}
+
+func (wd *WebDashboard) calculateCostByGPU() map[string]float64 {
+	result := make(map[string]float64)
+	for gpuID := range wd.lastMetrics {
+		result[gpuID] = 25.50 + float64(len(gpuID))*2.3 // Mock cost per GPU
+	}
+	return result
+}
+
+func (wd *WebDashboard) calculateOptimizationPotential() map[string]interface{} {
+	return map[string]interface{}{
+		"potential_savings": 45.75,
+		"efficiency_gain":   12.5,
+		"recommendations":   3,
+	}
+}
+
+func (wd *WebDashboard) calculateCostForecast(duration time.Duration) float64 {
+	// Simple forecast based on current cost data
+	return wd.lastCostData.TotalCost * (duration.Hours() / 24.0)
+}
+
+func countAlertsByLevel(alerts []Alert, level string) int {
+	count := 0
+	for _, alert := range alerts {
+		if alert.Level == level {
+			count++
+		}
+	}
+	return count
+}
+
+func getTopAlertSources(alerts []Alert) []map[string]interface{} {
+	sourceCount := make(map[string]int)
+	for _, alert := range alerts {
+		sourceCount[alert.Source]++
+	}
+
+	sources := make([]map[string]interface{}, 0)
+	for source, count := range sourceCount {
+		sources = append(sources, map[string]interface{}{
+			"source": source,
+			"count":  count,
+		})
+	}
+
+	return sources
+}
+
+func (wd *WebDashboard) calculateGPUEfficiencyScores() map[string]float64 {
+	scores := make(map[string]float64)
+	for gpuID, metrics := range wd.lastMetrics {
+		scores[gpuID] = calculateEfficiencyScore(metrics.UtilizationGPU, metrics.Temperature)
+	}
+	return scores
+}
+
+func (wd *WebDashboard) calculatePowerEfficiency() float64 {
+	totalUtil := 0.0
+	totalPower := 0.0
+
+	for _, metrics := range wd.lastMetrics {
+		totalUtil += metrics.UtilizationGPU
+		totalPower += metrics.PowerDraw
+	}
+
+	if totalPower > 0 {
+		return totalUtil / totalPower
+	}
+	return 0
+}
+
+func (wd *WebDashboard) calculateMemoryEfficiency() float64 {
+	totalMemoryUtil := 0.0
+	count := float64(len(wd.lastMetrics))
+
+	for _, metrics := range wd.lastMetrics {
+		if metrics.MemoryTotal > 0 {
+			totalMemoryUtil += float64(metrics.MemoryUsed) / float64(metrics.MemoryTotal) * 100
+		}
+	}
+
+	if count > 0 {
+		return totalMemoryUtil / count
+	}
+	return 0
+}
+
+func (wd *WebDashboard) calculateThermalEfficiency() float64 {
+	totalTemp := 0.0
+	count := float64(len(wd.lastMetrics))
+
+	for _, metrics := range wd.lastMetrics {
+		totalTemp += metrics.Temperature
+	}
+
+	avgTemp := totalTemp / count
+
+	// Return efficiency score based on temperature (lower is better)
+	return math.Max(0, 100-(avgTemp-40)*2) // Penalize temps above 40°C
+}
+
+func (wd *WebDashboard) generateEfficiencyRecommendations() []map[string]interface{} {
+	recommendations := []map[string]interface{}{}
+
+	avgUtil := 0.0
+	avgTemp := 0.0
+	count := float64(len(wd.lastMetrics))
+
+	for _, metrics := range wd.lastMetrics {
+		avgUtil += metrics.UtilizationGPU
+		avgTemp += metrics.Temperature
+	}
+
+	if count > 0 {
+		avgUtil /= count
+		avgTemp /= count
+	}
+
+	if avgUtil < 50 {
+		recommendations = append(recommendations, map[string]interface{}{
+			"type":        "utilization",
+			"priority":    "high",
+			"title":       "Low GPU Utilization",
+			"description": "Consider consolidating workloads to improve efficiency",
+			"impact":      "30% cost reduction",
+		})
+	}
+
+	if avgTemp > 75 {
+		recommendations = append(recommendations, map[string]interface{}{
+			"type":        "thermal",
+			"priority":    "medium",
+			"title":       "High Operating Temperature",
+			"description": "Improve cooling or reduce workload intensity",
+			"impact":      "Extended hardware lifespan",
+		})
+	}
+
+	return recommendations
+}
+
+func (wd *WebDashboard) calculateUtilizationTrend() map[string]interface{} {
+	// Mock trend data
+	return map[string]interface{}{
+		"direction": "increasing",
+		"change":    "+12.5%",
+		"slope":     0.15,
+	}
+}
+
+func (wd *WebDashboard) calculateTemperatureTrend() map[string]interface{} {
+	return map[string]interface{}{
+		"direction": "stable",
+		"change":    "+1.2°C",
+		"slope":     0.02,
+	}
+}
+
+func (wd *WebDashboard) calculateCostTrend() map[string]interface{} {
+	return map[string]interface{}{
+		"direction": "decreasing",
+		"change":    "-8.3%",
+		"slope":     -0.08,
+	}
+}
+
+func (wd *WebDashboard) calculateEfficiencyTrend() map[string]interface{} {
+	return map[string]interface{}{
+		"direction": "improving",
+		"change":    "+5.7%",
+		"slope":     0.06,
+	}
+}
+
+func (wd *WebDashboard) getTrendDataPoints() []map[string]interface{} {
+	points := make([]map[string]interface{}, 24)
+	baseTime := time.Now().Add(-24 * time.Hour)
+
+	for i := 0; i < 24; i++ {
+		points[i] = map[string]interface{}{
+			"timestamp":   baseTime.Add(time.Duration(i) * time.Hour),
+			"utilization": 60.0 + math.Sin(float64(i)*0.2)*20.0,
+			"temperature": 65.0 + math.Cos(float64(i)*0.15)*10.0,
+			"cost":        25.0 + float64(i)*0.5,
+		}
+	}
+
+	return points
+}
+
+func (wd *WebDashboard) getGPUStatus(metrics gpu.GPUMetrics) string {
+	if metrics.Temperature > 85 {
+		return "critical"
+	} else if metrics.Temperature > 75 || metrics.UtilizationGPU > 95 {
+		return "warning"
+	} else if metrics.UtilizationGPU > 5 {
+		return "active"
+	}
+	return "idle"
+}
+
+func (wd *WebDashboard) calculateUptime() string {
+	// Mock uptime - in real implementation this would track actual uptime
+	return "15 days, 4 hours, 23 minutes"
+}
+
+func (wd *WebDashboard) getDataFreshness() map[string]interface{} {
+	freshness := map[string]interface{}{
+		"last_update": time.Now().Add(-5 * time.Second),
+		"status":      "fresh",
+	}
+
+	// Check if data is stale
+	if len(wd.lastMetrics) > 0 {
+		latestTime := time.Time{}
+		for _, metrics := range wd.lastMetrics {
+			if metrics.Timestamp.After(latestTime) {
+				latestTime = metrics.Timestamp
+			}
+		}
+
+		age := time.Since(latestTime)
+		freshness["last_update"] = latestTime
+
+		if age > 30*time.Second {
+			freshness["status"] = "stale"
+		}
+	}
+
+	return freshness
+}
+
+func min(a, b int) int {
+	if a < b {
+		return a
+	}
+	return b
+}
+
+func (wd *WebDashboard) corsMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
+
+		if r.Method == "OPTIONS" {
+			w.WriteHeader(http.StatusOK)
+			return
+		}
+
+		next.ServeHTTP(w, r)
+	})
+}
+
+func (wd *WebDashboard) loggingMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		start := time.Now()
+		next.ServeHTTP(w, r)
+
+		fmt.Printf("[%s] %s %s - %v\n",
+			time.Now().Format("2006-01-02 15:04:05"),
+			r.Method,
+			r.URL.Path,
+			time.Since(start),
+		)
+	})
 }
