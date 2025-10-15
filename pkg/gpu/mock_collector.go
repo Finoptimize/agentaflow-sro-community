@@ -205,7 +205,9 @@ func (mc *MockMetricsCollector) Stop() {
 	}
 }
 
-// RegisterCallback registers a callback function to be called when new metrics are collected
+// RegisterCallback registers a callback function to be invoked whenever new GPU metrics are collected.
+// The callback function receives a GPUMetrics struct containing the latest metrics for a GPU.
+// This allows external code to react to new metrics as they become available.
 func (mc *MockMetricsCollector) RegisterCallback(callback func(GPUMetrics)) {
 	mc.mu.Lock()
 	defer mc.mu.Unlock()
