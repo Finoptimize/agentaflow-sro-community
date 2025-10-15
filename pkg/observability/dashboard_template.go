@@ -26,26 +26,27 @@ func getDashboardHTML(config WebDashboardConfig) string {
     
     <style>
         :root {
-            --bg-primary: #0a0e1a;
-            --bg-secondary: #1a1f2e;
-            --bg-tertiary: #252b3d;
+            --bg-primary: #0f1419;
+            --bg-secondary: #1e2329;
+            --bg-tertiary: #2b313b;
             --text-primary: #ffffff;
-            --text-secondary: #a0a6b8;
-            --text-muted: #6c757d;
-            --accent-blue: #007bff;
-            --accent-green: #28a745;
-            --accent-yellow: #ffc107;
-            --accent-red: #dc3545;
-            --accent-purple: #6f42c1;
-            --border-color: #3a4356;
-            --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-            --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+            --text-secondary: #c5ccd6;
+            --text-muted: #8a9199;
+            --accent-blue: #1890ff;
+            --accent-green: #52c41a;
+            --accent-yellow: #faad14;
+            --accent-red: #ff4d4f;
+            --accent-purple: #722ed1;
+            --border-color: #434a56;
+            --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.2);
+            --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.3);
         }
 
         * {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
+            transition: all 0.3s ease;
         }
 
         body {
@@ -98,12 +99,25 @@ func getDashboardHTML(config WebDashboardConfig) string {
         }
 
         .metric-card {
-            background: var(--bg-secondary);
+            background: linear-gradient(135deg, var(--bg-secondary) 0%, var(--bg-tertiary) 100%);
             border: 1px solid var(--border-color);
-            border-radius: 12px;
-            padding: 1.5rem;
+            border-radius: 16px;
+            padding: 1.75rem;
             transition: all 0.3s ease;
             box-shadow: var(--shadow);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .metric-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: linear-gradient(90deg, var(--accent-blue), var(--accent-purple), var(--accent-green));
+            opacity: 0.8;
         }
 
         .metric-card:hover {
@@ -120,17 +134,19 @@ func getDashboardHTML(config WebDashboardConfig) string {
 
         .metric-title {
             font-size: 0.875rem;
-            color: var(--text-secondary);
+            color: var(--text-primary);
             text-transform: uppercase;
             letter-spacing: 0.05em;
-            font-weight: 500;
+            font-weight: 600;
+            opacity: 0.9;
         }
 
         .metric-value {
-            font-size: 2rem;
+            font-size: 2.25rem;
             font-weight: 700;
             color: var(--text-primary);
             line-height: 1;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.3);
         }
 
         .metric-change {
@@ -151,11 +167,30 @@ func getDashboardHTML(config WebDashboardConfig) string {
         }
 
         .gpu-card {
-            background: var(--bg-secondary);
+            background: linear-gradient(135deg, var(--bg-secondary) 0%, var(--bg-tertiary) 100%);
             border: 1px solid var(--border-color);
-            border-radius: 12px;
-            padding: 1.5rem;
+            border-radius: 16px;
+            padding: 1.75rem;
             box-shadow: var(--shadow);
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .gpu-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: linear-gradient(90deg, var(--accent-green), var(--accent-blue), var(--accent-purple));
+            opacity: 0.8;
+        }
+
+        .gpu-card:hover {
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-lg);
         }
 
         .gpu-header {
@@ -206,16 +241,49 @@ func getDashboardHTML(config WebDashboardConfig) string {
         }
 
         .progress-bar {
-            transition: width 0.6s ease;
+            transition: width 0.6s ease, background-color 0.3s ease;
         }
 
+        .gpu-temp, .gpu-util, .gpu-memory {
+            transition: color 0.2s ease;
+            font-weight: 600;
+        }
+
+        .status-badge {
+            padding: 0.25rem 0.6rem;
+            border-radius: 6px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            transition: all 0.2s ease;
+        }
+
+        .status-healthy { background: var(--accent-green); color: white; }
+        .status-warning { background: var(--accent-yellow); color: #333; }
+        .status-critical { background: var(--accent-red); color: white; }
+
         .chart-container {
-            background: var(--bg-secondary);
-            border: 1px solid var(--border-color);
-            border-radius: 12px;
-            padding: 1.5rem;
+            background: linear-gradient(135deg, #2c3e50 0%, #34495e 50%, #2c3e50 100%);
+            border: 1px solid rgba(106, 135, 219, 0.3);
+            border-radius: 16px;
+            padding: 2rem;
             margin-bottom: 2rem;
-            box-shadow: var(--shadow);
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.2), 0 2px 8px rgba(106, 135, 219, 0.1);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .chart-container::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: linear-gradient(90deg, #e74c3c, #f39c12, #2ecc71, #3498db, #9b59b6);
+            opacity: 0.9;
+            border-radius: 16px 16px 0 0;
         }
 
         .chart-header {
@@ -228,12 +296,19 @@ func getDashboardHTML(config WebDashboardConfig) string {
         .chart-title {
             font-size: 1.125rem;
             font-weight: 600;
-            color: var(--text-primary);
+            color: #ecf0f1;
+            text-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
         }
 
         .chart-canvas {
             position: relative;
             height: 300px;
+            background: transparent;
+        }
+
+        .chart-canvas canvas {
+            background: rgba(255, 255, 255, 0.02) !important;
+            border-radius: 8px;
         }
 
         .alerts-container {
@@ -662,7 +737,15 @@ func getDashboardHTML(config WebDashboardConfig) string {
                 }
             ];
 
-            metricsContainer.innerHTML = metrics.map(metric => createMetricCard(metric)).join('');
+            // Update existing metric cards or create new ones
+            metrics.forEach((metric, index) => {
+                const existingCard = metricsContainer.children[index];
+                if (existingCard) {
+                    updateExistingMetricCard(existingCard, metric);
+                } else {
+                    metricsContainer.insertAdjacentHTML('beforeend', createMetricCard(metric));
+                }
+            });
         }
 
         // Create metric card HTML
@@ -670,16 +753,14 @@ func getDashboardHTML(config WebDashboardConfig) string {
             const changeClass = metric.change ? 
                 (metric.change.startsWith('+') ? 'positive' : 'negative') : 'neutral';
             
-            return ` + "`" + `
-                <div class="metric-card fade-in">
-                    <div class="metric-header">
-                        <span class="metric-title">${metric.title}</span>
-                        <i class="${metric.icon}" style="color: ${metric.color}; font-size: 1.25rem;"></i>
-                    </div>
-                    <div class="metric-value">${metric.value}</div>
-                    ${metric.change ? ` + "`" + `<div class="metric-change ${changeClass}">${metric.change}</div>` + "`" + ` : ''}
-                </div>
-            ` + "`" + `;
+            return '<div class="metric-card fade-in">' +
+                    '<div class="metric-header">' +
+                        '<span class="metric-title">' + metric.title + '</span>' +
+                        '<i class="' + metric.icon + '" style="color: ' + metric.color + '; font-size: 1.25rem;"></i>' +
+                    '</div>' +
+                    '<div class="metric-value">' + metric.value + '</div>' +
+                    (metric.change ? '<div class="metric-change ' + changeClass + '">' + metric.change + '</div>' : '') +
+                '</div>';
         }
 
         // Update GPU cards
@@ -691,11 +772,63 @@ func getDashboardHTML(config WebDashboardConfig) string {
                 return;
             }
 
-            const gpuCards = Object.entries(gpuMetrics).map(([gpuId, metrics]) => 
-                createGPUCard(gpuId, metrics)
-            ).join('');
+            Object.entries(gpuMetrics).forEach(([gpuId, metrics]) => {
+                var gpuCard = document.querySelector('[data-gpu-id="' + gpuId + '"]');
+                if (!gpuCard) {
+                    // Create new card if it doesn't exist
+                    const cardHTML = createGPUCard(gpuId, metrics);
+                    gpuContainer.insertAdjacentHTML('beforeend', cardHTML);
+                    gpuCard = document.querySelector('[data-gpu-id="' + gpuId + '"]');
+                } else {
+                    // Update existing card smoothly
+                    updateExistingGPUCard(gpuCard, metrics);
+                }
+            });
+        }
 
-            gpuContainer.innerHTML = gpuCards;
+        // Update existing metric card without replacing DOM
+        function updateExistingMetricCard(cardElement, metric) {
+            const valueElement = cardElement.querySelector('.metric-value');
+            const changeElement = cardElement.querySelector('.metric-change');
+            
+            if (valueElement) valueElement.textContent = metric.value;
+            if (changeElement && metric.change) changeElement.textContent = metric.change;
+        }
+
+        // Update existing GPU card without replacing DOM
+        function updateExistingGPUCard(cardElement, metrics) {
+            const utilization = metrics.utilization_gpu || 0;
+            const temperature = metrics.temperature || 0;
+            const memoryUsed = metrics.memory_used || 0;
+            const memoryTotal = metrics.memory_total || 1;
+            const memoryPercent = (memoryUsed / memoryTotal) * 100;
+            
+            // Update values smoothly
+            const tempElement = cardElement.querySelector('.gpu-temp');
+            const utilElement = cardElement.querySelector('.gpu-util');
+            const memoryElement = cardElement.querySelector('.gpu-memory');
+            
+            if (tempElement) tempElement.textContent = Math.round(temperature) + '°C';
+            if (utilElement) utilElement.textContent = Math.round(utilization) + '%';
+            if (memoryElement) memoryElement.textContent = 
+                (memoryUsed / 1024).toFixed(1) + '/' + (memoryTotal / 1024).toFixed(1) + ' GB';
+            
+            // Update progress bars smoothly
+            const tempBar = cardElement.querySelector('.progress-bar.temp-bar');
+            const utilBar = cardElement.querySelector('.progress-bar.util-bar');
+            const memBar = cardElement.querySelector('.progress-bar.memory-bar');
+            
+            if (tempBar) tempBar.style.width = Math.min(temperature / 100 * 100, 100) + '%';
+            if (utilBar) utilBar.style.width = utilization + '%';
+            if (memBar) memBar.style.width = memoryPercent + '%';
+            
+            // Update status badge
+            const status = getGPUStatus(temperature, utilization);
+            const statusBadge = cardElement.querySelector('.status-badge');
+            if (statusBadge) {
+                statusBadge.className = 'status-badge status-' + status.class;
+                statusBadge.textContent = status.text;
+            }
         }
 
         // Create GPU card HTML
@@ -708,47 +841,45 @@ func getDashboardHTML(config WebDashboardConfig) string {
             
             const status = getGPUStatus(temperature, utilization);
             
-            return ` + "`" + `
-                <div class="gpu-card fade-in">
-                    <div class="gpu-header">
-                        <div>
-                            <div class="gpu-name">${metrics.name || gpuId}</div>
-                            <small class="text-muted">${gpuId}</small>
-                        </div>
-                        <span class="gpu-status ${status}">${status}</span>
-                    </div>
+            return '<div class="gpu-card fade-in" data-gpu-id="' + gpuId + '">' +
+                    '<div class="gpu-header">' +
+                        '<div>' +
+                            '<div class="gpu-name">' + (metrics.name || gpuId) + '</div>' +
+                            '<small class="text-muted">' + gpuId + '</small>' +
+                        '</div>' +
+                        '<span class="status-badge status-' + status.class + '">' + status.text + '</span>' +
+                    '</div>' +
                     
-                    <div class="progress-group">
-                        <div class="progress-label">
-                            <span>Utilization</span>
-                            <span>${utilization.toFixed(1)}%</span>
-                        </div>
-                        <div class="progress">
-                            <div class="progress-bar" style="width: ${utilization}%; background-color: ${getUtilizationColor(utilization)};"></div>
-                        </div>
-                    </div>
+                    '<div class="progress-group">' +
+                        '<div class="progress-label">' +
+                            '<span>Utilization</span>' +
+                            '<span class="gpu-util">' + utilization.toFixed(1) + '%</span>' +
+                        '</div>' +
+                        '<div class="progress">' +
+                            '<div class="progress-bar util-bar" style="width: ' + utilization + '%; background-color: ' + getUtilizationColor(utilization) + ';"></div>' +
+                        '</div>' +
+                    '</div>' +
                     
-                    <div class="progress-group">
-                        <div class="progress-label">
-                            <span>Memory</span>
-                            <span>${(memoryUsed / 1024).toFixed(1)}GB / ${(memoryTotal / 1024).toFixed(1)}GB</span>
-                        </div>
-                        <div class="progress">
-                            <div class="progress-bar" style="width: ${memoryPercent}%; background-color: ${getMemoryColor(memoryPercent)};"></div>
-                        </div>
-                    </div>
+                    '<div class="progress-group">' +
+                        '<div class="progress-label">' +
+                            '<span>Memory</span>' +
+                            '<span class="gpu-memory">' + (memoryUsed / 1024).toFixed(1) + 'GB / ' + (memoryTotal / 1024).toFixed(1) + 'GB</span>' +
+                        '</div>' +
+                        '<div class="progress">' +
+                            '<div class="progress-bar memory-bar" style="width: ' + memoryPercent + '%; background-color: ' + getMemoryColor(memoryPercent) + ';"></div>' +
+                        '</div>' +
+                    '</div>' +
                     
-                    <div class="progress-group">
-                        <div class="progress-label">
-                            <span>Temperature</span>
-                            <span>${temperature.toFixed(1)}°C</span>
-                        </div>
-                        <div class="progress">
-                            <div class="progress-bar" style="width: ${Math.min(temperature / 100 * 100, 100)}%; background-color: ${getTemperatureColor(temperature)};"></div>
-                        </div>
-                    </div>
-                </div>
-            ` + "`" + `;
+                    '<div class="progress-group">' +
+                        '<div class="progress-label">' +
+                            '<span>Temperature</span>' +
+                            '<span class="gpu-temp">' + temperature.toFixed(1) + '°C</span>' +
+                        '</div>' +
+                        '<div class="progress">' +
+                            '<div class="progress-bar temp-bar" style="width: ' + Math.min(temperature / 100 * 100, 100) + '%; background-color: ' + getTemperatureColor(temperature) + ';"></div>' +
+                        '</div>' +
+                    '</div>' +
+                '</div>';
         }
 
         // Get GPU status based on metrics
@@ -788,23 +919,38 @@ func getDashboardHTML(config WebDashboardConfig) string {
             
             // Performance chart
             const performanceCtx = document.getElementById('performance-chart').getContext('2d');
+            // Add some initial sample data to make chart visible
+            const now = new Date();
+            const initialLabels = [];
+            const initialUtilData = [];
+            const initialTempData = [];
+            
+            for (let i = 9; i >= 0; i--) {
+                const time = new Date(now.getTime() - i * 30000); // 30 second intervals
+                initialLabels.push(time);
+                initialUtilData.push(Math.random() * 60 + 20); // 20-80%
+                initialTempData.push(Math.random() * 20 + 50); // 50-70°C
+            }
+            
             performanceChart = new Chart(performanceCtx, {
                 type: 'line',
                 data: {
-                    labels: [],
+                    labels: initialLabels,
                     datasets: [{
                         label: 'GPU Utilization %',
-                        data: [],
-                        borderColor: 'var(--accent-blue)',
-                        backgroundColor: 'rgba(0, 123, 255, 0.1)',
-                        tension: 0.4
+                        data: initialUtilData,
+                        borderColor: '#1890ff',
+                        backgroundColor: 'rgba(24, 144, 255, 0.1)',
+                        tension: 0.4,
+                        fill: true
                     }, {
                         label: 'Temperature °C',
-                        data: [],
-                        borderColor: 'var(--accent-red)',
-                        backgroundColor: 'rgba(220, 53, 69, 0.1)',
+                        data: initialTempData,
+                        borderColor: '#ff4d4f',
+                        backgroundColor: 'rgba(255, 77, 79, 0.1)',
                         tension: 0.4,
-                        yAxisID: 'y1'
+                        yAxisID: 'y1',
+                        fill: true
                     }]
                 },
                 options: {
@@ -816,31 +962,59 @@ func getDashboardHTML(config WebDashboardConfig) string {
                     },
                     plugins: {
                         legend: {
-                            labels: { color: 'var(--text-primary)' }
+                            labels: { 
+                                color: '#ffffff',
+                                font: { size: 12, weight: '500' }
+                            }
                         }
                     },
                     scales: {
                         x: {
                             type: 'time',
                             time: { unit: 'minute' },
-                            grid: { color: 'var(--border-color)' },
-                            ticks: { color: 'var(--text-secondary)' }
+                            grid: { 
+                                color: 'rgba(255, 255, 255, 0.1)',
+                                drawBorder: false
+                            },
+                            ticks: { 
+                                color: '#c5ccd6',
+                                font: { size: 11 }
+                            }
                         },
                         y: {
                             type: 'linear',
                             display: true,
                             position: 'left',
-                            grid: { color: 'var(--border-color)' },
-                            ticks: { color: 'var(--text-secondary)' },
-                            title: { display: true, text: 'Utilization %', color: 'var(--text-secondary)' }
+                            grid: { 
+                                color: 'rgba(255, 255, 255, 0.1)',
+                                drawBorder: false
+                            },
+                            ticks: { 
+                                color: '#c5ccd6',
+                                font: { size: 11 }
+                            },
+                            title: { 
+                                display: true, 
+                                text: 'Utilization %', 
+                                color: '#c5ccd6',
+                                font: { size: 12, weight: '500' }
+                            }
                         },
                         y1: {
                             type: 'linear',
                             display: true,
                             position: 'right',
                             grid: { drawOnChartArea: false },
-                            ticks: { color: 'var(--text-secondary)' },
-                            title: { display: true, text: 'Temperature °C', color: 'var(--text-secondary)' }
+                            ticks: { 
+                                color: '#c5ccd6',
+                                font: { size: 11 }
+                            },
+                            title: { 
+                                display: true, 
+                                text: 'Temperature °C', 
+                                color: '#c5ccd6',
+                                font: { size: 12, weight: '500' }
+                            }
                         }
                     }
                 }
@@ -855,25 +1029,36 @@ func getDashboardHTML(config WebDashboardConfig) string {
                     datasets: [{
                         data: [65, 20, 10, 5],
                         backgroundColor: [
-                            'var(--accent-blue)',
-                            'var(--accent-green)',
-                            'var(--accent-yellow)',
-                            'var(--accent-purple)'
+                            '#1890ff',  // Blue
+                            '#52c41a',  // Green  
+                            '#faad14',  // Yellow
+                            '#722ed1'   // Purple
                         ],
-                        borderWidth: 0
+                        borderColor: '#2c3e50',
+                        borderWidth: 2,
+                        hoverOffset: 8
                     }]
                 },
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
+                    cutout: '60%',
                     plugins: {
                         legend: {
                             position: 'bottom',
                             labels: { 
-                                color: 'var(--text-primary)',
+                                color: '#ffffff',
                                 usePointStyle: true,
-                                padding: 20
+                                padding: 15,
+                                font: { size: 12, weight: '500' }
                             }
+                        },
+                        tooltip: {
+                            backgroundColor: 'rgba(44, 62, 80, 0.9)',
+                            titleColor: '#ffffff',
+                            bodyColor: '#c5ccd6',
+                            borderColor: '#1890ff',
+                            borderWidth: 1
                         }
                     }
                 }
