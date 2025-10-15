@@ -196,7 +196,7 @@ func getDashboardHTML(config WebDashboardConfig) string {
         .gpu-header {
             display: flex;
             align-items: center;
-            justify-content: between;
+            justify-content: space-between;
             margin-bottom: 1rem;
         }
 
