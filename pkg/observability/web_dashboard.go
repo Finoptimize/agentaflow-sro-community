@@ -17,7 +17,7 @@ import (
 // WebDashboard represents the web-based monitoring dashboard
 type WebDashboard struct {
 	monitoringService  *MonitoringService
-	metricsCollector   *gpu.MetricsCollector
+	metricsCollector   gpu.MetricsCollectorInterface
 	prometheusExporter *PrometheusExporter
 	server             *http.Server
 	port               int
@@ -79,7 +79,7 @@ type AlertInfo struct {
 }
 
 // NewWebDashboard creates a new web dashboard instance
-func NewWebDashboard(monitoringService *MonitoringService, metricsCollector *gpu.MetricsCollector, prometheusExporter *PrometheusExporter, config WebDashboardConfig) *WebDashboard {
+func NewWebDashboard(monitoringService *MonitoringService, metricsCollector gpu.MetricsCollectorInterface, prometheusExporter *PrometheusExporter, config WebDashboardConfig) *WebDashboard {
 	ctx, cancel := context.WithCancel(context.Background())
 
 	wd := &WebDashboard{
@@ -152,6 +152,7 @@ func NewWebDashboard(monitoringService *MonitoringService, metricsCollector *gpu
 // Start starts the web dashboard server
 func (wd *WebDashboard) Start() error {
 	log.Printf("Starting web dashboard on port %d", wd.port)
+	log.Printf("Dashboard will be accessible at: http://localhost:%d", wd.port)
 
 	// Start background metrics collection
 	go wd.startMetricsCollection()
@@ -159,7 +160,13 @@ func (wd *WebDashboard) Start() error {
 	// Start WebSocket broadcast routine
 	go wd.startWebSocketBroadcast()
 
-	return wd.server.ListenAndServe()
+	log.Printf("HTTP server starting on :%d...", wd.port)
+	err := wd.server.ListenAndServe()
+	if err != nil && err != http.ErrServerClosed {
+		log.Printf("Error starting web dashboard server: %v", err)
+		return err
+	}
+	return err
 }
 
 // Stop stops the web dashboard server
@@ -240,7 +247,10 @@ func (wd *WebDashboard) startWebSocketBroadcast() {
 	for {
 		select {
 		case <-ticker.C:
-			wd.broadcastMetricsUpdate()
+			// Only broadcast if there are connections to avoid race conditions
+			if wd.GetActiveConnections() > 0 {
+				wd.broadcastMetrics()
+			}
 		case <-wd.ctx.Done():
 			return
 		}
@@ -347,10 +357,67 @@ func (wd *WebDashboard) getRecentAlerts() []AlertInfo {
 
 // setupRoutes configures the HTTP routes for the web dashboard
 func (wd *WebDashboard) setupRoutes(router *mux.Router) {
-	// Dashboard routes will be added here
-	// This is a placeholder for now
-	router.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusOK)
-		w.Write([]byte("Dashboard placeholder"))
-	})
+	// Create a config to pass to handlers
+	config := WebDashboardConfig{
+		Port:                  wd.port,
+		EnableRealTimeUpdates: wd.enableRealTimeUpdates,
+		Theme:                 wd.theme,
+		Title:                 "AgentaFlow GPU Monitoring Dashboard",
+		RefreshInterval:       3000,
+	}
+
+	// Main dashboard route
+	router.HandleFunc("/", wd.handleDashboard(config)).Methods("GET")
+
+	// Health check endpoint
+	router.HandleFunc("/health", wd.handleHealth).Methods("GET")
+
+	// WebSocket endpoint for real-time updates
+	router.HandleFunc("/ws", wd.handleWebSocket).Methods("GET")
+
+	// API v1 routes
+	api := router.PathPrefix("/api/v1").Subrouter()
+
+	// Metrics endpoints
+	api.HandleFunc("/metrics", wd.handleMetrics).Methods("GET")
+	api.HandleFunc("/gpu/{id}/metrics", wd.handleGPUMetrics).Methods("GET")
+	api.HandleFunc("/system/stats", wd.handleSystemStats).Methods("GET")
+
+	// Cost endpoints
+	api.HandleFunc("/costs", wd.handleCosts).Methods("GET")
+	api.HandleFunc("/costs/summary", wd.handleCostSummary).Methods("GET")
+	api.HandleFunc("/costs/forecast", wd.handleCostForecast).Methods("GET")
+
+	// Alert endpoints
+	api.HandleFunc("/alerts", wd.handleAlerts).Methods("GET")
+	api.HandleFunc("/alerts/{id}/resolve", wd.handleResolveAlert).Methods("POST")
+	api.HandleFunc("/alerts/summary", wd.handleAlertSummary).Methods("GET")
+
+	// Performance endpoints
+	api.HandleFunc("/performance", wd.handlePerformance).Methods("GET")
+	api.HandleFunc("/performance/efficiency", wd.handleEfficiency).Methods("GET")
+	api.HandleFunc("/performance/trends", wd.handleTrends).Methods("GET")
+
+	// GPU management endpoints
+	api.HandleFunc("/gpus", wd.handleGPUList).Methods("GET")
+	api.HandleFunc("/gpu/{id}/processes", wd.handleGPUProcesses).Methods("GET")
+	api.HandleFunc("/gpu/{id}/history", wd.handleGPUHistory).Methods("GET")
+
+	// System endpoints
+	api.HandleFunc("/system/overview", wd.handleSystemOverview).Methods("GET")
+	api.HandleFunc("/system/status", wd.handleSystemStatus).Methods("GET")
+
+	// Demo endpoints (for testing/simulation)
+	api.HandleFunc("/demo/trigger/{gpu_id}/{pattern}", wd.handleDemoTrigger).Methods("POST")
+	api.HandleFunc("/demo/simulation/speed", wd.handleSimulationSpeed).Methods("POST", "GET")
+
+	// Static file serving for dashboard assets
+	staticDir := "/static/"
+	router.PathPrefix(staticDir).Handler(http.StripPrefix(staticDir, http.FileServer(http.Dir("./static/"))))
+
+	// CORS middleware for development
+	router.Use(wd.corsMiddleware)
+
+	// Logging middleware
+	router.Use(wd.loggingMiddleware)
 }
