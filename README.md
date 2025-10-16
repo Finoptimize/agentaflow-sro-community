@@ -11,6 +11,9 @@ Deploy and manage AI infrastructure more efficiently with tools for GPU orchestr
 
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 [![Go Version](https://img.shields.io/badge/Go-1.21+-blue.svg)](https://golang.org/dl/)
+[![Container Build](https://github.com/Finoptimize/agentaflow-sro-community/actions/workflows/container.yml/badge.svg)](https://github.com/Finoptimize/agentaflow-sro-community/actions/workflows/container.yml)
+[![Security Scan](https://github.com/Finoptimize/agentaflow-sro-community/actions/workflows/security-scan.yml/badge.svg)](https://github.com/Finoptimize/agentaflow-sro-community/actions/workflows/security-scan.yml)
+[![Docker Pulls](https://img.shields.io/docker/pulls/finoptimize/agentaflow-sro-community)](https://github.com/Finoptimize/agentaflow-sro-community/pkgs/container/agentaflow-sro-community)
 
 ## 🚀 Features
 

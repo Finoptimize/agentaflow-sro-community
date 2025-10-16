@@ -1,0 +1,300 @@
+name: Release Automation
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to release (e.g., v1.0.0)'
+        required: true
+        type: string
+      prerelease:
+        description: 'Mark as pre-release'
+        required: false
+        type: boolean
+        default: false
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  # Generate changelog
+  changelog:
+    runs-on: ubuntu-latest
+    outputs:
+      changelog: ${{ steps.changelog.outputs.changelog }}
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      
+      - name: Get version
+        id: version
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            VERSION="${{ github.event.inputs.version }}"
+          else
+            VERSION=${GITHUB_REF#refs/tags/}
+          fi
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Version: $VERSION"
+      
+      - name: Generate changelog
+        id: changelog
+        run: |
+          echo "Generating changelog for ${{ steps.version.outputs.version }}"
+          
+          # Get previous tag
+          PREVIOUS_TAG=$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || echo "")
+          
+          if [ -z "$PREVIOUS_TAG" ]; then
+            echo "First release - including all commits"
+            CHANGELOG=$(git log --pretty=format:"- %s (%h)" --no-merges)
+          else
+            echo "Generating changelog from $PREVIOUS_TAG to HEAD"
+            CHANGELOG=$(git log $PREVIOUS_TAG..HEAD --pretty=format:"- %s (%h)" --no-merges)
+          fi
+          
+          # Group commits by type
+          FEATURES=$(echo "$CHANGELOG" | grep -E "^- (feat|feature)" || echo "")
+          FIXES=$(echo "$CHANGELOG" | grep -E "^- (fix|bugfix)" || echo "")
+          DOCS=$(echo "$CHANGELOG" | grep -E "^- (docs|doc)" || echo "")
+          CHORES=$(echo "$CHANGELOG" | grep -E "^- (chore|refactor|perf|test)" || echo "")
+          OTHERS=$(echo "$CHANGELOG" | grep -v -E "^- (feat|feature|fix|bugfix|docs|doc|chore|refactor|perf|test)" || echo "")
+          
+          # Build formatted changelog
+          FORMATTED_CHANGELOG="## What's Changed\n\n"
+          
+          if [ ! -z "$FEATURES" ]; then
+            FORMATTED_CHANGELOG="${FORMATTED_CHANGELOG}### ✨ New Features\n${FEATURES}\n\n"
+          fi
+          
+          if [ ! -z "$FIXES" ]; then
+            FORMATTED_CHANGELOG="${FORMATTED_CHANGELOG}### 🐛 Bug Fixes\n${FIXES}\n\n"
+          fi
+          
+          if [ ! -z "$DOCS" ]; then
+            FORMATTED_CHANGELOG="${FORMATTED_CHANGELOG}### 📚 Documentation\n${DOCS}\n\n"
+          fi
+          
+          if [ ! -z "$CHORES" ]; then
+            FORMATTED_CHANGELOG="${FORMATTED_CHANGELOG}### 🔧 Maintenance\n${CHORES}\n\n"
+          fi
+          
+          if [ ! -z "$OTHERS" ]; then
+            FORMATTED_CHANGELOG="${FORMATTED_CHANGELOG}### 🔄 Other Changes\n${OTHERS}\n\n"
+          fi
+          
+          # Add Docker images section
+          FORMATTED_CHANGELOG="${FORMATTED_CHANGELOG}## 🐳 Container Images\n\n"
+          FORMATTED_CHANGELOG="${FORMATTED_CHANGELOG}\`\`\`bash\n"
+          FORMATTED_CHANGELOG="${FORMATTED_CHANGELOG}# Web Dashboard\n"
+          FORMATTED_CHANGELOG="${FORMATTED_CHANGELOG}docker pull ghcr.io/${{ github.repository }}:web-dashboard-${{ steps.version.outputs.version }}\n\n"
+          FORMATTED_CHANGELOG="${FORMATTED_CHANGELOG}# Kubernetes Scheduler\n"
+          FORMATTED_CHANGELOG="${FORMATTED_CHANGELOG}docker pull ghcr.io/${{ github.repository }}:k8s-scheduler-${{ steps.version.outputs.version }}\n\n"
+          FORMATTED_CHANGELOG="${FORMATTED_CHANGELOG}# Prometheus Demo\n"
+          FORMATTED_CHANGELOG="${FORMATTED_CHANGELOG}docker pull ghcr.io/${{ github.repository }}:prometheus-demo-${{ steps.version.outputs.version }}\n"
+          FORMATTED_CHANGELOG="${FORMATTED_CHANGELOG}\`\`\`\n\n"
+          
+          # Save to file and output
+          echo "$FORMATTED_CHANGELOG" > changelog.md
+          cat changelog.md
+          
+          # Set output (escape for GitHub Actions)
+          EOF=$(dd if=/dev/urandom bs=15 count=1 status=none | base64)
+          echo "changelog<<$EOF" >> $GITHUB_OUTPUT
+          echo "$FORMATTED_CHANGELOG" >> $GITHUB_OUTPUT
+          echo "$EOF" >> $GITHUB_OUTPUT
+      
+      - name: Upload changelog artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: changelog
+          path: changelog.md
+
+  # Build release artifacts
+  build-release:
+    runs-on: ubuntu-latest
+    needs: changelog
+    strategy:
+      matrix:
+        component: [web-dashboard, k8s-scheduler, prometheus-demo]
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.21'
+          cache: true
+      
+      - name: Build component
+        run: |
+          VERSION="${{ needs.changelog.outputs.version }}"
+          COMPONENT="${{ matrix.component }}"
+          
+          # Determine build path
+          case $COMPONENT in
+            web-dashboard)
+              BUILD_PATH="./examples/demo/web-dashboard/main.go"
+              ;;
+            k8s-scheduler)
+              BUILD_PATH="./cmd/k8s-gpu-scheduler/main.go"
+              ;;
+            prometheus-demo)
+              BUILD_PATH="./examples/demo/prometheus-grafana/main.go"
+              ;;
+          esac
+          
+          
+          echo "Building component: $COMPONENT"
+          echo "Build path: $BUILD_PATH"
+          
+          # Build for multiple platforms
+          PLATFORMS="linux/amd64 linux/arm64 darwin/amd64 darwin/arm64 windows/amd64"
+          
+          for PLATFORM in $PLATFORMS; do
+            GOOS=${PLATFORM%/*}
+            GOARCH=${PLATFORM#*/}
+            OUTPUT="bin/${COMPONENT}-${VERSION}-${GOOS}-${GOARCH}"
+            
+            if [ "$GOOS" = "windows" ]; then
+              OUTPUT="${OUTPUT}.exe"
+            fi
+            
+            echo "Building $OUTPUT..."
+            CGO_ENABLED=0 GOOS=$GOOS GOARCH=$GOARCH go build \
+              -ldflags="-w -s -X main.Version=${VERSION} -X main.BuildTime=$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+              -o "$OUTPUT" \
+              "$BUILD_PATH"
+          done
+      
+      - name: Generate checksums
+        run: |
+          cd bin
+          sha256sum * > checksums-${{ matrix.component }}.txt
+          cat checksums-${{ matrix.component }}.txt
+      
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: binaries-${{ matrix.component }}
+          path: |
+            bin/*
+            !bin/*.txt
+      
+      - name: Upload checksums
+        uses: actions/upload-artifact@v4
+        with:
+          name: checksums-${{ matrix.component }}
+          path: bin/checksums-${{ matrix.component }}.txt
+
+  # Create GitHub Release
+  create-release:
+    runs-on: ubuntu-latest
+    needs: [changelog, build-release]
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Download changelog
+        uses: actions/download-artifact@v4
+        with:
+          name: changelog
+      
+      - name: Download all binaries
+        uses: actions/download-artifact@v4
+        with:
+          pattern: binaries-*
+          path: release-binaries
+          merge-multiple: true
+      
+      - name: Download all checksums
+        uses: actions/download-artifact@v4
+        with:
+          pattern: checksums-*
+          path: release-checksums
+      
+      - name: Prepare release assets
+        run: |
+          mkdir -p release-assets
+          
+          # Copy all binaries
+          cp -r release-binaries/* release-assets/
+          
+          # Merge checksums
+          cat release-checksums/*.txt > release-assets/checksums.txt
+          
+          # Create zip archives for each platform
+          cd release-assets
+          
+          # Linux AMD64
+          zip agentaflow-${{ needs.changelog.outputs.version }}-linux-amd64.zip *-linux-amd64
+          
+          # Linux ARM64
+          zip agentaflow-${{ needs.changelog.outputs.version }}-linux-arm64.zip *-linux-arm64
+          
+          # macOS AMD64
+          zip agentaflow-${{ needs.changelog.outputs.version }}-darwin-amd64.zip *-darwin-amd64
+          
+          # macOS ARM64
+          zip agentaflow-${{ needs.changelog.outputs.version }}-darwin-arm64.zip *-darwin-arm64
+          
+          # Windows AMD64
+          zip agentaflow-${{ needs.changelog.outputs.version }}-windows-amd64.zip *-windows-amd64.exe
+          
+          ls -lah
+      
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          name: AgentaFlow SRO ${{ needs.changelog.outputs.version }}
+          body_path: changelog.md
+          draft: false
+          prerelease: ${{ github.event.inputs.prerelease || false }}
+          files: |
+            release-assets/*.zip
+            release-assets/checksums.txt
+          generate_release_notes: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      
+      - name: Create release summary
+        run: |
+          echo "## 🎉 Release ${{ needs.changelog.outputs.version }} Published" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 📦 Release Assets" >> $GITHUB_STEP_SUMMARY
+          echo "- Linux AMD64: \`agentaflow-${{ needs.changelog.outputs.version }}-linux-amd64.zip\`" >> $GITHUB_STEP_SUMMARY
+          echo "- Linux ARM64: \`agentaflow-${{ needs.changelog.outputs.version }}-linux-arm64.zip\`" >> $GITHUB_STEP_SUMMARY
+          echo "- macOS AMD64: \`agentaflow-${{ needs.changelog.outputs.version }}-darwin-amd64.zip\`" >> $GITHUB_STEP_SUMMARY
+          echo "- macOS ARM64: \`agentaflow-${{ needs.changelog.outputs.version }}-darwin-arm64.zip\`" >> $GITHUB_STEP_SUMMARY
+          echo "- Windows AMD64: \`agentaflow-${{ needs.changelog.outputs.version }}-windows-amd64.zip\`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 🐳 Container Images" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`bash" >> $GITHUB_STEP_SUMMARY
+          echo "docker pull ghcr.io/${{ github.repository }}:web-dashboard-${{ needs.changelog.outputs.version }}" >> $GITHUB_STEP_SUMMARY
+          echo "docker pull ghcr.io/${{ github.repository }}:k8s-scheduler-${{ needs.changelog.outputs.version }}" >> $GITHUB_STEP_SUMMARY
+          echo "docker pull ghcr.io/${{ github.repository }}:prometheus-demo-${{ needs.changelog.outputs.version }}" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "🔗 [View Release](https://github.com/${{ github.repository }}/releases/tag/${{ needs.changelog.outputs.version }})" >> $GITHUB_STEP_SUMMARY
+
+  # Notify on release
+  notify:
+    runs-on: ubuntu-latest
+    needs: [create-release, changelog]
+    if: success()
+    steps:
+      - name: Release notification
+        run: |
+          echo "✅ Release ${{ needs.changelog.outputs.version }} completed successfully!"
+          echo "🎉 Assets published to GitHub Releases"
+          echo "🐳 Container images available on GitHub Packages"

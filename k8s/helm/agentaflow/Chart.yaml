@@ -1,0 +1,19 @@
+apiVersion: v2
+name: agentaflow
+description: AgentaFlow SRO - GPU Resource Optimization Platform
+type: application
+version: 1.0.0
+appVersion: "1.0.0"
+keywords:
+  - gpu
+  - kubernetes
+  - monitoring
+  - observability
+  - ai
+  - machine-learning
+home: https://github.com/Finoptimize/agentaflow-sro-community
+sources:
+  - https://github.com/Finoptimize/agentaflow-sro-community
+maintainers:
+  - name: DeWitt Gibson
+    email: dewitt@finoptimize.com
