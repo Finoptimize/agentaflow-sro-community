@@ -58,7 +58,7 @@ func TestPrometheusMetrics(t *testing.T) {
 
 	// Give Prometheus a moment to scrape at least once after being ready
 	time.Sleep(5 * time.Second)
-	resp, err := waitForEndpoint(prometheusURL+"/-/ready", healthTimeout)
+	resp, err = waitForEndpoint(prometheusURL+"/-/ready", healthTimeout)
 	if err != nil {
 		t.Fatalf("Prometheus not ready: %v", err)
 	}
@@ -67,7 +67,7 @@ func TestPrometheusMetrics(t *testing.T) {
 	// Give Prometheus a moment to scrape at least once after being ready
 	time.Sleep(5 * time.Second)
 
-	resp, err := http.Get(metricsURL)
+	resp, err = http.Get(metricsURL)
 	if err != nil {
 		t.Fatalf("Failed to get metrics: %v", err)
 	}
@@ -123,6 +123,7 @@ func TestDashboardContent(t *testing.T) {
 			t.Errorf("Dashboard missing expected content: %q", expected)
 		}
 	}
+}
 
 // TestPrometheusTargets verifies Prometheus is scraping AgentaFlow
 func TestPrometheusTargets(t *testing.T) {
@@ -132,10 +133,6 @@ func TestPrometheusTargets(t *testing.T) {
 	}
 }
 
-=======
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
 // waitForAgentaFlowTarget polls the Prometheus targets endpoint until AgentaFlow appears or timeout is reached.
 func waitForAgentaFlowTarget(url string, timeout, retryWait time.Duration) (bool, string) {
 	deadline := time.Now().Add(timeout)
@@ -160,21 +157,6 @@ func waitForAgentaFlowTarget(url string, timeout, retryWait time.Duration) (bool
 			return true, lastBody
 		}
 		time.Sleep(retryWait)
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-=======
-=======
->>>>>>> Stashed changes
-	}
-	return false, lastBody
-	return false, lastBody
-
-	targets := string(body)
-
-	// Check that AgentaFlow is being scraped
-	if !strings.Contains(targets, "agentaflow") && !strings.Contains(targets, "9001") {
-		t.Errorf("AgentaFlow target not found in Prometheus targets. Response: %s", targets)
->>>>>>> Stashed changes
 	}
 	return false, lastBody
 }
