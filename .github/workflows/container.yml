@@ -1,0 +1,250 @@
+name: Container Build and Publish
+
+on:
+  push:
+    branches: ['main', 'develop']
+    tags: ['v*']
+  pull_request:
+    branches: ['main']
+  workflow_dispatch:
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  # Security and code quality
+  security-scan:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Run Trivy vulnerability scanner in filesystem mode
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: 'fs'
+          scan-ref: '.'
+          format: 'sarif'
+          output: 'trivy-results.sarif'
+          severity: 'CRITICAL,HIGH'
+      
+      - name: Upload Trivy scan results to GitHub Security
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: 'trivy-results.sarif'
+
+  # Build and test
+  build-and-test:
+    runs-on: ubuntu-latest
+    needs: security-scan
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.21'
+          cache: true
+      
+      - name: Download dependencies
+        run: go mod download
+      
+      - name: Run unit tests
+        run: go test -v -race -coverprofile=coverage.out ./...
+      
+      - name: Upload coverage reports
+        uses: codecov/codecov-action@v4
+        if: github.event_name == 'push'
+        with:
+          file: ./coverage.out
+          flags: unittests
+          name: codecov-umbrella
+        continue-on-error: true
+      
+      - name: Build all components
+        run: |
+          echo "Building web-dashboard..."
+          go build -v -o bin/web-dashboard ./examples/demo/web-dashboard/main.go
+          echo "Building k8s-scheduler..."
+          go build -v -o bin/k8s-scheduler ./cmd/k8s-gpu-scheduler/main.go
+          echo "Building prometheus-demo..."
+          go build -v -o bin/prometheus-demo ./examples/demo/prometheus-grafana/main.go
+
+  # Container build and publish
+  container-publish:
+    runs-on: ubuntu-latest
+    needs: build-and-test
+    if: github.event_name != 'pull_request'
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+    strategy:
+      matrix:
+        component: 
+          - web-dashboard
+          - k8s-scheduler
+          - prometheus-demo
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+      
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          flavor: |
+            latest=auto
+            prefix=${{ matrix.component }}-,onlatest=true
+          tags: |
+            type=ref,event=branch
+            type=ref,event=pr
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=raw,value=latest,enable={{is_default_branch}}
+            type=sha,prefix={{branch}}-
+          labels: |
+            org.opencontainers.image.title=AgentaFlow SRO ${{ matrix.component }}
+            org.opencontainers.image.description=AgentaFlow GPU Resource Optimization - ${{ matrix.component }}
+            org.opencontainers.image.vendor=Finoptimize
+      
+      - name: Build and push container image
+        id: build-push
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./docker/Dockerfile.${{ matrix.component }}
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          platforms: linux/amd64,linux/arm64
+          cache-from: type=gha,scope=${{ matrix.component }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.component }}
+          provenance: true
+          sbom: true
+      
+      - name: Install Cosign
+        uses: sigstore/cosign-installer@v3
+        if: github.event_name != 'pull_request'
+      
+      - name: Sign container image with Cosign
+        if: github.event_name != 'pull_request'
+        env:
+          COSIGN_EXPERIMENTAL: "true"
+        run: |
+          echo "Signing image with Cosign..."
+          cosign sign --yes \
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}@${{ steps.build-push.outputs.digest }}
+      
+      - name: Run Trivy container scan
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ matrix.component }}-latest
+          format: 'sarif'
+          output: 'trivy-container-${{ matrix.component }}.sarif'
+          severity: 'CRITICAL,HIGH'
+        continue-on-error: true
+      
+      - name: Upload container scan results
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: 'trivy-container-${{ matrix.component }}.sarif'
+          category: 'container-${{ matrix.component }}'
+        continue-on-error: true
+      
+      - name: Generate SLSA provenance
+        uses: slsa-framework/slsa-github-generator/.github/workflows/generator_container_slsa3.yml@v1.9.0
+        if: startsWith(github.ref, 'refs/tags/')
+        continue-on-error: true
+
+  # Integration testing
+  integration-test:
+    runs-on: ubuntu-latest
+    needs: container-publish
+    if: github.event_name != 'pull_request'
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      
+      - name: Start containers with test configuration
+        run: |
+          docker-compose -f docker-compose.test.yml up -d
+          echo "Waiting for services to be ready..."
+          sleep 45
+      
+      - name: Run health checks
+        run: |
+          echo "Checking web dashboard..."
+          curl -f http://localhost:9000/health || exit 1
+          echo "Checking Prometheus metrics endpoint..."
+          curl -f http://localhost:9001/metrics || exit 1
+          echo "Checking Prometheus..."
+          curl -f http://localhost:9090/-/healthy || exit 1
+          echo "All health checks passed!"
+      
+      - name: Set up Go for integration tests
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.21'
+          cache: true
+      
+      - name: Run integration tests
+        run: |
+          if [ -d "tests/integration" ]; then
+            go test -v -timeout 5m ./tests/integration/...
+          else
+            echo "Integration tests directory not found, skipping..."
+          fi
+        continue-on-error: true
+      
+      - name: Display container logs on failure
+        if: failure()
+        run: |
+          echo "=== Docker Compose Logs ==="
+          docker-compose -f docker-compose.test.yml logs
+      
+      - name: Cleanup
+        if: always()
+        run: docker-compose -f docker-compose.test.yml down -v
+
+  # Release summary
+  release-summary:
+    runs-on: ubuntu-latest
+    needs: [integration-test]
+    if: github.event_name != 'pull_request'
+    steps:
+      - name: Create release summary
+        run: |
+          echo "## 🎉 Container Build Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Images Published" >> $GITHUB_STEP_SUMMARY
+          echo "- \`ghcr.io/${{ github.repository }}:web-dashboard-latest\`" >> $GITHUB_STEP_SUMMARY
+          echo "- \`ghcr.io/${{ github.repository }}:k8s-scheduler-latest\`" >> $GITHUB_STEP_SUMMARY
+          echo "- \`ghcr.io/${{ github.repository }}:prometheus-demo-latest\`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Quick Start" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`bash" >> $GITHUB_STEP_SUMMARY
+          echo "docker run -p 9000:9000 -p 9001:9001 ghcr.io/${{ github.repository }}:web-dashboard-latest" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY

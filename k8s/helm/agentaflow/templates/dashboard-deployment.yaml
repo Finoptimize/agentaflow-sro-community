@@ -1,0 +1,72 @@
+{{- if .Values.dashboard.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "agentaflow.fullname" . }}-dashboard
+  labels:
+    {{- include "agentaflow.labels" . | nindent 4 }}
+    app.kubernetes.io/component: dashboard
+spec:
+  {{- if not .Values.dashboard.autoscaling.enabled }}
+  replicas: {{ .Values.dashboard.replicaCount }}
+  {{- end }}
+  selector:
+    matchLabels:
+      {{- include "agentaflow.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: dashboard
+  template:
+    metadata:
+      annotations:
+        checksum/config: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
+        {{- with .Values.podAnnotations }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+      labels:
+        {{- include "agentaflow.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: dashboard
+    spec:
+      {{- with .Values.global.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "agentaflow.serviceAccountName" . }}
+      securityContext:
+        {{- toYaml .Values.dashboard.securityContext | nindent 8 }}
+      containers:
+      - name: dashboard
+        image: "{{ .Values.global.imageRegistry }}/{{ .Values.dashboard.image.repository }}:{{ .Values.dashboard.image.tag }}"
+        imagePullPolicy: {{ .Values.dashboard.image.pullPolicy }}
+        ports:
+        - name: http
+          containerPort: 9000
+          protocol: TCP
+        - name: metrics
+          containerPort: 9001
+          protocol: TCP
+        env:
+        {{- toYaml .Values.dashboard.env | nindent 8 }}
+        livenessProbe:
+          {{- toYaml .Values.dashboard.livenessProbe | nindent 10 }}
+        readinessProbe:
+          {{- toYaml .Values.dashboard.readinessProbe | nindent 10 }}
+        resources:
+          {{- toYaml .Values.dashboard.resources | nindent 10 }}
+        volumeMounts:
+        - name: tmp
+          mountPath: /tmp
+      volumes:
+      - name: tmp
+        emptyDir: {}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+{{- end }}

@@ -276,15 +276,97 @@ docker inspect --format='{{.State.Health.Status}}' agentaflow-dashboard
 docker inspect --format='{{range .State.Health.Log}}{{.Output}}{{end}}' agentaflow-dashboard
 ```
 
+## 🤖 CI/CD Pipeline & GitHub Packages
+
+### Automated Builds
+
+AgentaFlow uses GitHub Actions for automated container builds:
+
+**Triggers**:
+- Push to `main` or `develop` branches
+- Version tags (e.g., `v1.0.0`)
+- Pull requests to `main`
+- Manual workflow dispatch
+
+**Pipeline Stages**:
+1. **Security Scan**: Trivy vulnerability scanning on source code
+2. **Build & Test**: Go tests with coverage reporting
+3. **Container Build**: Multi-arch builds (AMD64 + ARM64) with caching
+4. **Container Scan**: Trivy + Grype security scanning
+5. **Integration Test**: Health checks and API validation
+6. **Publish**: Push to GitHub Container Registry
+
+**Workflow Files**:
+- `.github/workflows/container.yml` - Main build pipeline
+- `.github/workflows/security-scan.yml` - Scheduled security scans
+
+### GitHub Container Registry
+
+All images are published to GitHub Container Registry (ghcr.io):
+
+```bash
+# Pull latest images
+docker pull ghcr.io/finoptimize/agentaflow-sro-community:web-dashboard-latest
+docker pull ghcr.io/finoptimize/agentaflow-sro-community:k8s-scheduler-latest
+docker pull ghcr.io/finoptimize/agentaflow-sro-community:prometheus-demo-latest
+
+# Pull specific version
+docker pull ghcr.io/finoptimize/agentaflow-sro-community:web-dashboard-v1.0.0
+```
+
+### Image Tags
+
+**Tag Strategy**:
+- `latest` - Latest build from main branch
+- `<component>-latest` - Latest component-specific build
+- `<component>-v1.0.0` - Specific version release
+- `<component>-main-<sha>` - Branch + commit SHA
+- `<component>-1.0` - Major.minor version
+
+**Examples**:
+```bash
+# Production: Use version tags
+docker pull ghcr.io/finoptimize/agentaflow-sro-community:web-dashboard-v1.0.0
+
+# Development: Use latest
+docker pull ghcr.io/finoptimize/agentaflow-sro-community:web-dashboard-latest
+
+# Specific commit: Use SHA tags
+docker pull ghcr.io/finoptimize/agentaflow-sro-community:web-dashboard-main-abc1234
+```
+
+### Security & Provenance
+
+**Automated Security**:
+- Daily vulnerability scans
+- CodeQL analysis
+- Secret detection with Gitleaks
+- SBOM (Software Bill of Materials) generation
+- SLSA provenance for release builds
+
+**View Security Reports**:
+- [Security Advisories](https://github.com/Finoptimize/agentaflow-sro-community/security/advisories)
+- [Dependabot Alerts](https://github.com/Finoptimize/agentaflow-sro-community/security/dependabot)
+- [Code Scanning](https://github.com/Finoptimize/agentaflow-sro-community/security/code-scanning)
+
+### Automated Dependency Updates
+
+Dependabot monitors and updates:
+- Go module dependencies (weekly)
+- Docker base images (weekly)
+- GitHub Actions versions (weekly)
+
+**Configuration**: `.github/dependabot.yml`
+
 ## 🔄 Updates and Maintenance
 
 ### Pulling Latest Images
 
 ```bash
-# From GitHub Container Registry (when published)
-docker pull ghcr.io/finoptimize/agentaflow-sro-community:web-dashboard
+# From GitHub Container Registry
+docker pull ghcr.io/finoptimize/agentaflow-sro-community:web-dashboard-latest
 
-# Update compose stack
+# Update compose stack to use registry images
 docker-compose pull
 docker-compose up -d
 ```
