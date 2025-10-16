@@ -120,11 +120,9 @@ func TestDashboardContent(t *testing.T) {
 
 	for _, expected := range expectedContent {
 		if !strings.Contains(content, expected) {
-	targetFound, targets := waitForAgentaFlowTarget(prometheusURL+"/api/v1/targets", healthTimeout, healthRetryWait)
-	if !targetFound {
-		t.Fatalf("AgentaFlow target not found in Prometheus targets after %v. Last response: %s", healthTimeout, targets)
+			t.Errorf("Dashboard missing expected content: %q", expected)
+		}
 	}
-}
 
 <<<<<<< Updated upstream
 <<<<<<< Updated upstream
