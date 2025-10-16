@@ -112,31 +112,38 @@ func TestDashboardContent(t *testing.T) {
 
 // TestPrometheusTargets verifies Prometheus is scraping AgentaFlow
 func TestPrometheusTargets(t *testing.T) {
-	// Wait for Prometheus to discover targets
-	time.Sleep(15 * time.Second)
-
-	resp, err := http.Get(prometheusURL + "/api/v1/targets")
-	if err != nil {
-		t.Fatalf("Failed to get Prometheus targets: %v", err)
+	targetFound, targets := waitForAgentaFlowTarget(prometheusURL+"/api/v1/targets", healthTimeout, healthRetryWait)
+	if !targetFound {
+		t.Fatalf("AgentaFlow target not found in Prometheus targets after %v. Last response: %s", healthTimeout, targets)
 	}
-	defer resp.Body.Close()
+}
 
-	if resp.StatusCode != http.StatusOK {
-		body, _ := io.ReadAll(resp.Body)
-		t.Fatalf("Prometheus targets API returned %d: %s", resp.StatusCode, string(body))
+// waitForAgentaFlowTarget polls the Prometheus targets endpoint until AgentaFlow appears or timeout is reached.
+func waitForAgentaFlowTarget(url string, timeout, retryWait time.Duration) (bool, string) {
+	deadline := time.Now().Add(timeout)
+	var lastBody string
+	for time.Now().Before(deadline) {
+		resp, err := http.Get(url)
+		if err != nil {
+			lastBody = fmt.Sprintf("Error: %v", err)
+			time.Sleep(retryWait)
+			continue
+		}
+		body, err := io.ReadAll(resp.Body)
+		resp.Body.Close()
+		if err != nil {
+			lastBody = fmt.Sprintf("Error reading body: %v", err)
+			time.Sleep(retryWait)
+			continue
+		}
+		lastBody = string(body)
+		if resp.StatusCode == http.StatusOK &&
+			(strings.Contains(lastBody, "agentaflow") || strings.Contains(lastBody, "9001")) {
+			return true, lastBody
+		}
+		time.Sleep(retryWait)
 	}
-
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		t.Fatalf("Failed to read targets response: %v", err)
-	}
-
-	targets := string(body)
-
-	// Check that AgentaFlow is being scraped
-	if !strings.Contains(targets, "agentaflow") && !strings.Contains(targets, "9001") {
-		t.Errorf("AgentaFlow target not found in Prometheus targets. Response: %s", targets)
-	}
+	return false, lastBody
 }
 
 // TestWebSocketConnection verifies WebSocket endpoint is accessible
