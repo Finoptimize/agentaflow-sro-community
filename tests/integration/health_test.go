@@ -124,8 +124,6 @@ func TestDashboardContent(t *testing.T) {
 		}
 	}
 
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
 // TestPrometheusTargets verifies Prometheus is scraping AgentaFlow
 func TestPrometheusTargets(t *testing.T) {
 	targetFound, targets := waitForAgentaFlowTarget(prometheusURL+"/api/v1/targets", healthTimeout, healthRetryWait)
