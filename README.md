@@ -1,9 +1,10 @@
 # AgentaFlow SRO Community Edition
 
-**AI Infrastructure Tooling & Optimization Platform**
+## AI Infrastructure Tooling & Optimization Platform
 
-### Author: DeWitt Gibson (@dewitt4)
-**Repository**: https://github.com/Finoptimize/agentaflow-sro-community
+**Author**: DeWitt Gibson (@dewitt4)
+
+**Repository**: <https://github.com/Finoptimize/agentaflow-sro-community>
 
 
 Deploy and manage AI infrastructure more efficiently with tools for GPU orchestration, model serving optimization, and comprehensive observability.
@@ -14,7 +15,9 @@ Deploy and manage AI infrastructure more efficiently with tools for GPU orchestr
 ## 🚀 Features
 
 ### GPU Orchestration & Scheduling
+
 Tools that optimize GPU utilization across workloads, reducing waste:
+
 - **Smart Scheduling**: Multiple strategies (least-utilized, best-fit, priority, round-robin)
 - **Kubernetes Integration**: Native Kubernetes GPU scheduling with Custom Resource Definitions
 - **Resource Optimization**: Reduce GPU idle time by up to 40%
@@ -22,14 +25,18 @@ Tools that optimize GPU utilization across workloads, reducing waste:
 - **Real-time Monitoring**: Track utilization, memory, temperature, and power
 
 ### AI Model Serving Optimization
+
 Software that reduces inference costs through better batching, caching, and routing:
+
 - **Request Batching**: Improve throughput by 3-5x with intelligent batching
 - **Smart Caching**: Reduce latency by up to 50% with TTL-based caching
 - **Load Balancing**: Multiple routing strategies for optimal distribution
 - **Cost Reduction**: Minimize inference costs through efficient resource use
 
 ### Observability Tools for AI Systems
+
 Enterprise-grade monitoring, debugging, and cost tracking for LLM applications and training runs:
+
 - **Prometheus Integration**: Production-ready metrics export with 20+ GPU and cost metrics
 - **Grafana Dashboards**: Pre-built visual analytics for GPU clusters and cost optimization
 - **Real-time Alerting**: Automatic threshold monitoring and notification system
@@ -38,7 +45,46 @@ Enterprise-grade monitoring, debugging, and cost tracking for LLM applications a
 - **Distributed Tracing**: Full request tracing across distributed systems
 - **Debug Utilities**: Multi-level logging with performance analysis
 
-## 📦 Installation
+## � Screenshots
+
+### 🌐 Web Dashboard Interface
+
+Our production-ready web dashboard provides real-time GPU monitoring with a modern, professional interface:
+
+![Web Dashboard Overview](docs/screenshots/dashboard-overview.png)
+*Real-time GPU monitoring dashboard with live metrics, charts, and system overview*
+
+### 📊 Real-time Performance Charts
+
+Interactive Chart.js visualizations show GPU performance trends and cost analytics:
+
+![Performance Charts](docs/screenshots/performance-charts.png)
+*GPU utilization and temperature tracking with live cost breakdown analytics*
+
+### 🎯 GPU Metrics Grid
+
+Comprehensive GPU monitoring with individual card status and real-time alerts:
+
+![GPU Metrics Grid](docs/screenshots/gpu-metrics-grid.png)
+*Individual GPU monitoring cards showing utilization, temperature, memory usage, and health status*
+
+### 🚨 Alert Management System
+
+Real-time alert system with WebSocket notifications and threshold monitoring:
+
+![Alert Management](docs/screenshots/alert-system.png)
+*Live alert feed with temperature warnings, utilization alerts, and memory notifications*
+
+### 📈 System Analytics
+
+Advanced analytics showing efficiency scores, cost tracking, and performance insights:
+
+![System Analytics](docs/screenshots/system-analytics.png)
+*System-wide metrics including efficiency scoring, cost per hour, and resource optimization*
+
+> **Demo Ready**: All screenshots show the dashboard running on a local laptop without requiring NVIDIA hardware - perfect for demonstrations and development!
+
+## �📦 Installation
 
 ```bash
 go get github.com/Finoptimize/agentaflow-sro-community
@@ -299,7 +345,18 @@ agentaflow-sro-community/
     └── demo/          # Demo applications
 ```
 
-## 🔧 Monitoring & Observability
+## � Taking Screenshots
+
+To add actual screenshots to this README:
+
+1. Start the demo: `go run examples/demo/web-dashboard/main.go`
+2. Open browser to: `http://localhost:9000`
+3. Take high-resolution screenshots and save them in `docs/screenshots/`
+4. Use the filenames referenced above (dashboard-overview.png, etc.)
+
+For detailed screenshot guidelines, see [docs/screenshots/README.md](docs/screenshots/README.md)
+
+## �🔧 Monitoring & Observability
 
 AgentaFlow provides **enterprise-grade monitoring** through comprehensive Prometheus/Grafana integration with production-ready dashboards and alerting.
 
@@ -313,7 +370,8 @@ go run main.go
 ```
 
 This starts:
-- **Prometheus metrics server** on http://localhost:8080/metrics
+
+- **Prometheus metrics server** on <http://localhost:8080/metrics>
 - **Real-time GPU monitoring** with automatic export
 - **Cost tracking** with live calculations
 - **Performance analytics** and efficiency scoring
@@ -337,6 +395,7 @@ kubectl port-forward svc/prometheus-service 9090:9090 -n agentaflow-monitoring
 ### 🎯 Available Metrics & Dashboards
 
 **GPU Performance Metrics:**
+
 - `agentaflow_gpu_utilization_percent` - Real-time GPU utilization
 - `agentaflow_gpu_memory_used_bytes` - Memory consumption tracking
 - `agentaflow_gpu_temperature_celsius` - Thermal monitoring
@@ -344,18 +403,21 @@ kubectl port-forward svc/prometheus-service 9090:9090 -n agentaflow-monitoring
 - `agentaflow_gpu_fan_speed_percent` - Cooling system status
 
 **Cost & Efficiency Analytics:**
+
 - `agentaflow_cost_total_dollars` - Real-time cost tracking
 - `agentaflow_gpu_efficiency_score` - Efficiency scoring (0-100)
 - `agentaflow_gpu_idle_time_percent` - Resource waste tracking
 - `agentaflow_cost_per_hour` - Live hourly cost calculation
 
 **Workload & Scheduling Metrics:**
+
 - `agentaflow_workloads_pending` - Job queue depth
 - `agentaflow_workloads_completed_total` - Completion tracking
 - `agentaflow_scheduler_decisions_total` - Scheduling decisions
 - `agentaflow_gpu_assignments_total` - Resource assignments
 
 **System Health & Alerts:**
+
 - Component status monitoring
 - Automatic threshold alerts
 - Performance trend analysis
@@ -364,6 +426,7 @@ kubectl port-forward svc/prometheus-service 9090:9090 -n agentaflow-monitoring
 ### 📈 Pre-built Grafana Dashboards
 
 The integration includes production-ready dashboards:
+
 - **GPU Cluster Overview** - Multi-node GPU monitoring
 - **Cost Analysis Dashboard** - Real-time cost tracking and forecasting
 - **Performance Analytics** - Efficiency scoring and optimization insights
@@ -371,11 +434,43 @@ The integration includes production-ready dashboards:
 
 For complete setup guide and advanced configuration, see [examples/demo/PROMETHEUS_GRAFANA_DEMO.md](examples/demo/PROMETHEUS_GRAFANA_DEMO.md)
 
+## 🌐 Interactive Web Dashboard
+
+AgentaFlow now includes a **production-ready web dashboard** for real-time GPU monitoring and system analytics.
+
+### 🚀 Quick Start Web Dashboard
+
+```bash
+cd examples/demo/web-dashboard
+go run main.go
+```
+
+**Access the dashboard**: <http://localhost:8090>
+
+### ✨ Dashboard Features
+
+- **📊 Real-time Monitoring**: Live GPU metrics with WebSocket updates
+- **📈 Interactive Charts**: GPU utilization, temperature, and cost analytics
+- **🎯 System Overview**: Total GPUs, efficiency scoring, and cost tracking
+- **🚨 Alert Management**: Real-time notifications and one-click resolution
+- **📱 Responsive Design**: Optimized for desktop, tablet, and mobile
+- **🔌 API Integration**: REST endpoints for custom integrations
+
+### 🎯 Use Cases
+
+- **Data Center Operations** - Real-time cluster monitoring
+- **Cost Management** - Live cost tracking and optimization
+- **Performance Analysis** - Identify bottlenecks and inefficiencies  
+- **Alert Management** - Proactive issue detection and resolution
+
+For detailed dashboard documentation, see [examples/demo/web-dashboard/README.md](examples/demo/web-dashboard/README.md)
+
 ## 📖 Documentation
 
 For detailed documentation, see [DOCUMENTATION.md](DOCUMENTATION.md)
 
 Topics covered:
+
 - Detailed API reference
 - Scheduling strategies
 - Performance optimization
@@ -412,8 +507,8 @@ Contributions are welcome! This is a community edition focused on providing acce
 - ✅ Real-time GPU metrics collection
 - ✅ **Prometheus/Grafana integration** - Complete monitoring stack with dashboards
 - ✅ **Production-ready observability** - Enterprise-grade metrics export and visualization
-- 🔄 Web dashboard for monitoring
-- 🔄 OpenTelemetry support for tracing
+- ✅ **Web dashboard for monitoring** - Interactive real-time web interface with charts and alerts
+- ✅ **OpenTelemetry distributed tracing** - Complete tracing integration with Jaeger/OTLP support
 
 ## 🚀 Enterprise Edition (Coming Soon)
 
@@ -438,4 +533,4 @@ For questions, issues, or contributions, please open an issue on GitHub.
 
 ---
 
-**Built with ❤️ by FinOptimize for AgentaFlow**
+Built with ❤️ by FinOptimize for AgentaFlow

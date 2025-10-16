@@ -1,0 +1,79 @@
+# OpenTelemetry Tracing Configuration for AgentaFlow SRO Community Edition
+
+# Service identification
+service_name: "agentaflow-sro-community"
+service_version: "0.1.0"
+environment: "development"  # development, staging, production
+
+# Tracing configuration
+tracing:
+  enabled: true
+  
+  # Sampling configuration (0.0 to 1.0)
+  # 1.0 = trace all requests, 0.1 = trace 10% of requests
+  sampling_ratio: 1.0
+  
+  # Export configuration
+  exporters:
+    # Jaeger exporter (for local development)
+    jaeger:
+      enabled: true
+      endpoint: "http://localhost:14268/api/traces"
+    
+    # OTLP HTTP exporter (for production)
+    otlp_http:
+      enabled: false
+      endpoint: "https://api.honeycomb.io/v1/traces"  # Example: Honeycomb
+      headers:
+        "x-honeycomb-team": "your-api-key"
+    
+    # Console/stdout exporter (for debugging)
+    stdout:
+      enabled: false
+      pretty_print: true
+
+# Resource attributes (metadata attached to all traces)
+resource_attributes:
+  - key: "service.namespace"
+    value: "agentaflow"
+  - key: "service.instance.id"
+    value: "gpu-scheduler-1"
+  - key: "deployment.environment"
+    value: "kubernetes"
+
+# Component-specific tracing settings
+components:
+  gpu_scheduler:
+    trace_workload_submission: true
+    trace_scheduling_decisions: true
+    trace_gpu_registration: true
+    
+  metrics_collector:
+    trace_collection_cycles: true
+    trace_individual_gpus: false  # Can be noisy
+    
+  model_serving:
+    trace_inference_requests: true
+    trace_model_loading: true
+    
+  web_dashboard:
+    trace_api_requests: true
+    trace_websocket_events: false  # Can be very noisy
+    
+  observability:
+    trace_cost_calculations: true
+    trace_health_checks: false
+
+# Performance settings
+performance:
+  # Maximum number of spans to export in a batch
+  max_export_batch_size: 512
+  
+  # Maximum time to wait before forcing a batch export
+  max_export_timeout: "30s"
+  
+  # Maximum time to wait for export to complete
+  export_timeout: "30s"
+  
+  # Queue size for spans waiting to be exported
+  max_queue_size: 2048

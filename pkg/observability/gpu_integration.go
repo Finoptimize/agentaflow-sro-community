@@ -82,7 +82,7 @@ func DefaultGPUCostConfiguration() GPUCostConfiguration {
 // GPUMetricsIntegration connects GPU metrics collection with observability monitoring
 type GPUMetricsIntegration struct {
 	monitoringService  *MonitoringService
-	metricsCollector   *gpu.MetricsCollector
+	metricsCollector   gpu.MetricsCollectorInterface
 	prometheusExporter *PrometheusExporter // Add Prometheus support
 	mu                 sync.RWMutex
 
@@ -128,7 +128,7 @@ func DefaultGPUAlertThresholds() GPUAlertThresholds {
 // NewGPUMetricsIntegration creates a new GPU metrics integration
 func NewGPUMetricsIntegration(
 	monitoringService *MonitoringService,
-	metricsCollector *gpu.MetricsCollector,
+	metricsCollector gpu.MetricsCollectorInterface,
 ) *GPUMetricsIntegration {
 	integration := &GPUMetricsIntegration{
 		monitoringService: monitoringService,
