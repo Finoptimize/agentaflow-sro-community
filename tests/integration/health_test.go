@@ -58,6 +58,14 @@ func TestPrometheusMetrics(t *testing.T) {
 
 	// Give Prometheus a moment to scrape at least once after being ready
 	time.Sleep(5 * time.Second)
+	resp, err := waitForEndpoint(prometheusURL+"/-/ready", healthTimeout)
+	if err != nil {
+		t.Fatalf("Prometheus not ready: %v", err)
+	}
+	resp.Body.Close()
+
+	// Give Prometheus a moment to scrape at least once after being ready
+	time.Sleep(5 * time.Second)
 
 	resp, err := http.Get(metricsURL)
 	if err != nil {
@@ -162,6 +170,7 @@ func waitForAgentaFlowTarget(url string, timeout, retryWait time.Duration) (bool
 =======
 >>>>>>> Stashed changes
 	}
+	return false, lastBody
 	return false, lastBody
 
 	targets := string(body)
