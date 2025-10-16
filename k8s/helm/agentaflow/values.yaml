@@ -201,7 +201,7 @@ grafana:
     accessMode: ReadWriteOnce
   
   adminUser: admin
-  adminPassword: "agentaflow123"  # Change in production!
+  adminPassword: ""  # REQUIRED: Set a secure password before deploying!
   
   plugins:
     - grafana-piechart-panel
