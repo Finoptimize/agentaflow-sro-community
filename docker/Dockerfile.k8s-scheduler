@@ -1,0 +1,66 @@
+# Multi-stage Dockerfile for AgentaFlow Kubernetes GPU Scheduler
+# Optimized for Kubernetes deployments
+
+# Build stage
+FROM golang:1.21-alpine AS builder
+
+# Install build dependencies
+RUN apk add --no-cache git ca-certificates tzdata
+
+# Create non-root user
+RUN adduser -D -s /bin/sh -u 1000 appuser
+
+# Set working directory
+WORKDIR /build
+
+# Copy go mod files and download dependencies
+COPY go.mod go.sum ./
+RUN go mod download && go mod verify
+
+# Copy source code
+COPY . .
+
+# Build the scheduler application
+RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build \
+    -ldflags='-w -s -extldflags "-static"' \
+    -a -installsuffix cgo \
+    -o k8s-gpu-scheduler \
+    ./cmd/k8s-gpu-scheduler/main.go
+
+# Runtime stage - Distroless for security
+FROM gcr.io/distroless/static-debian12:nonroot
+
+# Copy essentials from builder
+COPY --from=builder /usr/share/zoneinfo /usr/share/zoneinfo
+COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
+
+# Copy the compiled binary
+COPY --from=builder --chown=nonroot:nonroot /build/k8s-gpu-scheduler /app/k8s-gpu-scheduler
+
+# Set working directory
+WORKDIR /app
+
+# Use non-root user
+USER nonroot:nonroot
+
+# Expose metrics port
+EXPOSE 8080
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=3s --start-period=10s --retries=3 \
+    CMD ["/app/k8s-gpu-scheduler", "--health-check"]
+
+# Environment defaults
+ENV LOG_LEVEL=info \
+    SCHEDULER_PORT=8080 \
+    STRATEGY=least-utilized
+
+# Labels
+LABEL org.opencontainers.image.title="AgentaFlow Kubernetes GPU Scheduler" \
+      org.opencontainers.image.description="Kubernetes-native GPU workload scheduler" \
+      org.opencontainers.image.vendor="FinOptimize" \
+      org.opencontainers.image.source="https://github.com/Finoptimize/agentaflow-sro-community" \
+      org.opencontainers.image.licenses="Apache-2.0"
+
+# Application entrypoint
+ENTRYPOINT ["/app/k8s-gpu-scheduler"]

@@ -1,0 +1,117 @@
+version: '3.8'
+
+services:
+  # AgentaFlow Web Dashboard - Main monitoring interface
+  agentaflow-dashboard:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.web-dashboard
+    container_name: agentaflow-dashboard
+    ports:
+      - "9000:9000"  # Web Dashboard UI
+      - "9001:9001"  # Prometheus Metrics
+    environment:
+      - LOG_LEVEL=info
+      - GPU_SIMULATION=true
+      - WEB_PORT=9000
+      - METRICS_PORT=9001
+      - ALERT_THRESHOLDS=temperature:80,utilization:95,memory:90
+    volumes:
+      - agentaflow-data:/data
+    networks:
+      - agentaflow-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "/app/agentaflow-dashboard", "--health-check"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    labels:
+      - "com.agentaflow.component=web-dashboard"
+      - "com.agentaflow.version=1.0.0"
+
+  # Prometheus - Metrics collection and storage
+  prometheus:
+    image: prom/prometheus:v2.47.0
+    container_name: agentaflow-prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./monitoring/prometheus/rules:/etc/prometheus/rules:ro
+      - prometheus-data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+      - '--storage.tsdb.retention.time=30d'
+      - '--web.enable-lifecycle'
+      - '--web.enable-admin-api'
+    networks:
+      - agentaflow-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:9090/-/healthy"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    labels:
+      - "com.agentaflow.component=prometheus"
+      - "com.agentaflow.version=2.47.0"
+    depends_on:
+      - agentaflow-dashboard
+
+  # Grafana - Visualization and dashboards
+  grafana:
+    image: grafana/grafana:10.1.4
+    container_name: agentaflow-grafana
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=agentaflow123
+      - GF_INSTALL_PLUGINS=grafana-piechart-panel,grafana-worldmap-panel
+      - GF_USERS_ALLOW_SIGN_UP=false
+      - GF_SERVER_ROOT_URL=http://localhost:3000
+      - GF_ANALYTICS_REPORTING_ENABLED=false
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./monitoring/grafana/dashboards:/var/lib/grafana/dashboards:ro
+    networks:
+      - agentaflow-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    labels:
+      - "com.agentaflow.component=grafana"
+      - "com.agentaflow.version=10.1.4"
+    depends_on:
+      - prometheus
+
+# Named volumes for data persistence
+volumes:
+  agentaflow-data:
+    driver: local
+    labels:
+      - "com.agentaflow.volume=app-data"
+  prometheus-data:
+    driver: local
+    labels:
+      - "com.agentaflow.volume=prometheus-data"
+  grafana-data:
+    driver: local
+    labels:
+      - "com.agentaflow.volume=grafana-data"
+
+# Bridge network for inter-service communication
+networks:
+  agentaflow-network:
+    driver: bridge
+    labels:
+      - "com.agentaflow.network=main"

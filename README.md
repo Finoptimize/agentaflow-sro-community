@@ -503,8 +503,8 @@ Contributions are welcome! This is a community edition focused on providing acce
 
 ## 🗺️ Roadmap
 
-- ✅ Kubernetes integration for GPU scheduling
-- ✅ Real-time GPU metrics collection
+- ✅ **Kubernetes integration for GPU scheduling**
+- ✅ **Real-time GPU metrics collection**
 - ✅ **Prometheus/Grafana integration** - Complete monitoring stack with dashboards
 - ✅ **Production-ready observability** - Enterprise-grade metrics export and visualization
 - ✅ **Web dashboard for monitoring** - Interactive real-time web interface with charts and alerts
@@ -517,7 +517,7 @@ Looking for advanced features for production environments? Our **Enterprise Edit
 - **Multi-cluster Orchestration**: Manage GPU resources across multiple Kubernetes clusters
 - **Multi-cloud GPU resource support**: Support for running in Azure, Google Cloud, Vercel, DigitalOcean, or other clouds
 - **Hosted MCP Server**: Intergrate AgentaFlow SRO directly into your AI models
-- **Self-optimizing AI Agents**: Learns your workflows for personalized optimization
+- **Self-optimizing AI Agents**: AI Agents learn your workflows for personalized optimization
 - **Advanced Scheduling Algorithms**: Cost optimization algorithms and priority queues for enterprise workloads  
 - **RBAC and Audit Logs**: Role-based access control and comprehensive audit logging
 - **Enterprise Integrations**: Slack alerts, DataDog monitoring, and other enterprise tools

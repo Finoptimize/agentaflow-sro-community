@@ -1,0 +1,106 @@
+# Prometheus alerting rules for AgentaFlow
+
+groups:
+  - name: agentaflow_gpu_alerts
+    interval: 30s
+    rules:
+      # GPU Temperature Alerts
+      - alert: GPUHighTemperature
+        expr: agentaflow_gpu_temperature_celsius > 80
+        for: 2m
+        labels:
+          severity: warning
+          component: gpu
+        annotations:
+          summary: "GPU {{ $labels.gpu_id }} temperature is high"
+          description: "GPU {{ $labels.gpu_id }} temperature is {{ $value }}°C (threshold: 80°C)"
+
+      - alert: GPUCriticalTemperature
+        expr: agentaflow_gpu_temperature_celsius > 90
+        for: 1m
+        labels:
+          severity: critical
+          component: gpu
+        annotations:
+          summary: "GPU {{ $labels.gpu_id }} temperature is critical"
+          description: "GPU {{ $labels.gpu_id }} temperature is {{ $value }}°C (critical threshold: 90°C)"
+
+      # GPU Utilization Alerts
+      - alert: GPUHighUtilization
+        expr: agentaflow_gpu_utilization_percent > 95
+        for: 5m
+        labels:
+          severity: warning
+          component: gpu
+        annotations:
+          summary: "GPU {{ $labels.gpu_id }} utilization is very high"
+          description: "GPU {{ $labels.gpu_id }} utilization is {{ $value }}% for more than 5 minutes"
+
+      # GPU Memory Alerts
+      - alert: GPUHighMemoryUsage
+        expr: (agentaflow_gpu_memory_used_bytes / agentaflow_gpu_memory_total_bytes) * 100 > 90
+        for: 3m
+        labels:
+          severity: warning
+          component: gpu
+        annotations:
+          summary: "GPU {{ $labels.gpu_id }} memory usage is high"
+          description: "GPU {{ $labels.gpu_id }} memory usage is {{ $value }}%"
+
+      - alert: GPUMemoryFull
+        expr: (agentaflow_gpu_memory_used_bytes / agentaflow_gpu_memory_total_bytes) * 100 > 98
+        for: 1m
+        labels:
+          severity: critical
+          component: gpu
+        annotations:
+          summary: "GPU {{ $labels.gpu_id }} memory is nearly full"
+          description: "GPU {{ $labels.gpu_id }} memory usage is {{ $value }}% - workloads may fail"
+
+  - name: agentaflow_system_alerts
+    interval: 60s
+    rules:
+      # System-wide alerts
+      - alert: LowGPUEfficiency
+        expr: agentaflow_gpu_efficiency_score < 50
+        for: 10m
+        labels:
+          severity: info
+          component: system
+        annotations:
+          summary: "GPU cluster efficiency is low"
+          description: "Average GPU efficiency score is {{ $value }}/100 - consider workload optimization"
+
+      - alert: HighCostRate
+        expr: rate(agentaflow_cost_total_dollars[5m]) * 3600 > 10
+        for: 5m
+        labels:
+          severity: warning
+          component: cost
+        annotations:
+          summary: "GPU cost rate is high"
+          description: "Current cost rate is ${{ $value }}/hour - review resource utilization"
+
+  - name: agentaflow_availability_alerts
+    interval: 30s
+    rules:
+      # Service availability
+      - alert: AgentaFlowDashboardDown
+        expr: up{job="agentaflow-dashboard"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          component: dashboard
+        annotations:
+          summary: "AgentaFlow dashboard is down"
+          description: "The web dashboard has been unavailable for more than 1 minute"
+
+      - alert: PrometheusTargetDown
+        expr: up == 0
+        for: 2m
+        labels:
+          severity: warning
+          component: monitoring
+        annotations:
+          summary: "Prometheus target {{ $labels.job }} is down"
+          description: "Prometheus cannot scrape {{ $labels.job }} for more than 2 minutes"
