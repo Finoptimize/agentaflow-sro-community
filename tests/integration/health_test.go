@@ -119,6 +119,7 @@ func TestDashboardContent(t *testing.T) {
 }
 
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
 // TestPrometheusTargets verifies Prometheus is scraping AgentaFlow
 func TestPrometheusTargets(t *testing.T) {
 	targetFound, targets := waitForAgentaFlowTarget(prometheusURL+"/api/v1/targets", healthTimeout, healthRetryWait)
@@ -127,6 +128,8 @@ func TestPrometheusTargets(t *testing.T) {
 	}
 }
 
+=======
+>>>>>>> Stashed changes
 =======
 >>>>>>> Stashed changes
 // waitForAgentaFlowTarget polls the Prometheus targets endpoint until AgentaFlow appears or timeout is reached.
@@ -154,7 +157,10 @@ func waitForAgentaFlowTarget(url string, timeout, retryWait time.Duration) (bool
 		}
 		time.Sleep(retryWait)
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
 =======
+=======
+>>>>>>> Stashed changes
 	}
 	return false, lastBody
 
