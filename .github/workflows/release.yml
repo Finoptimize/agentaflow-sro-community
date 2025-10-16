@@ -152,11 +152,6 @@ jobs:
               ;;
           esac
           
-          # Validate BUILD_PATH was set
-          if [ -z "$BUILD_PATH" ]; then
-            echo "Error: Unknown component '$COMPONENT'. BUILD_PATH not set."
-            exit 1
-          fi
           
           echo "Building component: $COMPONENT"
           echo "Build path: $BUILD_PATH"
