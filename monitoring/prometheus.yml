@@ -1,0 +1,48 @@
+# Prometheus configuration for AgentaFlow monitoring
+
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  external_labels:
+    cluster: 'agentaflow-demo'
+    environment: 'development'
+
+# Alertmanager configuration (optional)
+# alerting:
+#   alertmanagers:
+#     - static_configs:
+#         - targets: ['alertmanager:9093']
+
+# Rule files for alerting
+rule_files:
+  - '/etc/prometheus/rules/*.yml'
+
+# Scrape configurations
+scrape_configs:
+  # AgentaFlow Web Dashboard metrics
+  - job_name: 'agentaflow-dashboard'
+    static_configs:
+      - targets: ['agentaflow-dashboard:9001']
+        labels:
+          component: 'web-dashboard'
+          service: 'agentaflow'
+    metrics_path: '/metrics'
+    scrape_interval: 10s
+    scrape_timeout: 5s
+
+  # Prometheus self-monitoring
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+        labels:
+          component: 'prometheus'
+          service: 'monitoring'
+
+  # Grafana monitoring (optional)
+  - job_name: 'grafana'
+    static_configs:
+      - targets: ['grafana:3000']
+        labels:
+          component: 'grafana'
+          service: 'visualization'
+    metrics_path: '/metrics'
