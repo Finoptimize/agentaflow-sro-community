@@ -50,7 +50,14 @@ func TestHealthEndpoints(t *testing.T) {
 // TestPrometheusMetrics verifies Prometheus is scraping metrics
 func TestPrometheusMetrics(t *testing.T) {
 	// Wait a bit for Prometheus to scrape at least once
-	time.Sleep(15 * time.Second)
+	resp, err := waitForEndpoint(prometheusURL+"/-/ready", healthTimeout)
+	if err != nil {
+		t.Fatalf("Prometheus not ready: %v", err)
+	}
+	resp.Body.Close()
+
+	// Give Prometheus a moment to scrape at least once after being ready
+	time.Sleep(5 * time.Second)
 
 	resp, err := http.Get(metricsURL)
 	if err != nil {
@@ -105,11 +112,13 @@ func TestDashboardContent(t *testing.T) {
 
 	for _, expected := range expectedContent {
 		if !strings.Contains(content, expected) {
-			t.Errorf("Expected content '%s' not found in dashboard HTML", expected)
-		}
+	targetFound, targets := waitForAgentaFlowTarget(prometheusURL+"/api/v1/targets", healthTimeout, healthRetryWait)
+	if !targetFound {
+		t.Fatalf("AgentaFlow target not found in Prometheus targets after %v. Last response: %s", healthTimeout, targets)
 	}
 }
 
+<<<<<<< Updated upstream
 // TestPrometheusTargets verifies Prometheus is scraping AgentaFlow
 func TestPrometheusTargets(t *testing.T) {
 	targetFound, targets := waitForAgentaFlowTarget(prometheusURL+"/api/v1/targets", healthTimeout, healthRetryWait)
@@ -118,6 +127,8 @@ func TestPrometheusTargets(t *testing.T) {
 	}
 }
 
+=======
+>>>>>>> Stashed changes
 // waitForAgentaFlowTarget polls the Prometheus targets endpoint until AgentaFlow appears or timeout is reached.
 func waitForAgentaFlowTarget(url string, timeout, retryWait time.Duration) (bool, string) {
 	deadline := time.Now().Add(timeout)
@@ -142,6 +153,17 @@ func waitForAgentaFlowTarget(url string, timeout, retryWait time.Duration) (bool
 			return true, lastBody
 		}
 		time.Sleep(retryWait)
+<<<<<<< Updated upstream
+=======
+	}
+	return false, lastBody
+
+	targets := string(body)
+
+	// Check that AgentaFlow is being scraped
+	if !strings.Contains(targets, "agentaflow") && !strings.Contains(targets, "9001") {
+		t.Errorf("AgentaFlow target not found in Prometheus targets. Response: %s", targets)
+>>>>>>> Stashed changes
 	}
 	return false, lastBody
 }

@@ -106,7 +106,7 @@ def calculate_cache_efficiency(runs: List[Dict]) -> Dict[str, Any]:
         "note": "Estimated based on build duration variance"
     }
 
-def generate_recommendations(metrics: Dict[str, Any]) -> List[str]:
+def generate_recommendations(metrics: Dict[str, Any], runs: List[Dict]) -> List[str]:
     """Generate optimization recommendations"""
     recommendations = []
     
@@ -123,7 +123,7 @@ def generate_recommendations(metrics: Dict[str, Any]) -> List[str]:
         )
     
     # Cache recommendations
-    cache_metrics = calculate_cache_efficiency([])
+    cache_metrics = calculate_cache_efficiency(runs)
     if cache_metrics.get("cache_hit_rate_estimate", 0) < 80:
         recommendations.append(
             "⚠️  Low cache hit rate detected - review caching strategy"
@@ -171,7 +171,7 @@ def main():
         print()
         
         # Recommendations
-        recommendations = generate_recommendations(metrics)
+        recommendations = generate_recommendations(metrics, runs)
         print("💡 Recommendations")
         for rec in recommendations:
             print(f"  {rec}")

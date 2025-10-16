@@ -152,6 +152,15 @@ jobs:
               ;;
           esac
           
+          # Validate BUILD_PATH was set
+          if [ -z "$BUILD_PATH" ]; then
+            echo "Error: Unknown component '$COMPONENT'. BUILD_PATH not set."
+            exit 1
+          fi
+          
+          echo "Building component: $COMPONENT"
+          echo "Build path: $BUILD_PATH"
+          
           # Build for multiple platforms
           PLATFORMS="linux/amd64 linux/arm64 darwin/amd64 darwin/arm64 windows/amd64"
           
