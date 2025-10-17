@@ -606,7 +606,7 @@ Looking for advanced features for production environments? Our **Enterprise Edit
 - **Enterprise Integrations**: Slack alerts, DataDog monitoring, and other enterprise tools
 - **SLA Support**: Guaranteed service levels with dedicated support
 - **Usage-based Billing Features**: Advanced cost tracking and billing automation
-- **Advanced Dashboard^**: Enhanced observability for LLM models
+- **Advanced Dashboard**: Enhanced observability for LLM models
 - **Data Center Edition**: Run on bare metal in the data center
 
 *Contact us for early access and enterprise pricing.*
