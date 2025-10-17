@@ -147,8 +147,11 @@ jobs:
           COSIGN_EXPERIMENTAL: "true"
         run: |
           echo "Signing image with Cosign..."
+          # Extract the first tag from the metadata output
+          IMAGE_TAG=$(echo "${{ steps.meta.outputs.tags }}" | head -n1)
+          echo "Signing image: ${IMAGE_TAG}@${{ steps.build-push.outputs.digest }}"
           cosign sign --yes \
-            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}@${{ steps.build-push.outputs.digest }}
+            "${IMAGE_TAG}@${{ steps.build-push.outputs.digest }}"
       
       - name: Run Trivy container scan
         uses: aquasecurity/trivy-action@master
