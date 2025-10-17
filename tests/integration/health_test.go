@@ -9,6 +9,8 @@ import (
 	"time"
 )
 
+// Integration tests for AgentaFlow health monitoring
+
 const (
 	dashboardURL    = "http://localhost:9000"
 	metricsURL      = "http://localhost:9001/metrics"

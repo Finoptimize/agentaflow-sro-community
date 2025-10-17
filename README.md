@@ -48,8 +48,6 @@ Enterprise-grade monitoring, debugging, and cost tracking for LLM applications a
 - **Distributed Tracing**: Full request tracing across distributed systems
 - **Debug Utilities**: Multi-level logging with performance analysis
 
-## � Screenshots
-
 ### 🌐 Web Dashboard Interface
 
 Our production-ready web dashboard provides real-time GPU monitoring with a modern, professional interface:
@@ -431,18 +429,7 @@ The complete monitoring stack includes:
 
 For detailed Docker documentation, see [docker/README.md](docker/README.md) and [CONTAINER.md](CONTAINER.md)
 
-## � Taking Screenshots
-
-To add actual screenshots to this README:
-
-1. Start the demo: `go run examples/demo/web-dashboard/main.go`
-2. Open browser to: `http://localhost:9000`
-3. Take high-resolution screenshots and save them in `docs/screenshots/`
-4. Use the filenames referenced above (dashboard-overview.png, etc.)
-
-For detailed screenshot guidelines, see [docs/screenshots/README.md](docs/screenshots/README.md)
-
-## �🔧 Monitoring & Observability
+## 🔧 Monitoring & Observability
 
 AgentaFlow provides **enterprise-grade monitoring** through comprehensive Prometheus/Grafana integration with production-ready dashboards and alerting.
 
@@ -619,6 +606,7 @@ Looking for advanced features for production environments? Our **Enterprise Edit
 - **Enterprise Integrations**: Slack alerts, DataDog monitoring, and other enterprise tools
 - **SLA Support**: Guaranteed service levels with dedicated support
 - **Usage-based Billing Features**: Advanced cost tracking and billing automation
+- **Advanced Dashboard**: Enhanced observability for LLM models
 - **Data Center Edition**: Run on bare metal in the data center
 
 *Contact us for early access and enterprise pricing.*
