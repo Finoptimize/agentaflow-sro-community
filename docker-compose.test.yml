@@ -1,9 +1,7 @@
-version: '3.8'
-
 services:
   # AgentaFlow Web Dashboard - Using latest built image
   agentaflow-dashboard:
-    image: ghcr.io/${GITHUB_REPOSITORY:-finoptimize/agentaflow-sro-community}:web-dashboard-latest
+    image: ghcr.io/finoptimize/agentaflow-sro-community:web-dashboard-latest
     container_name: agentaflow-dashboard-test
     ports:
       - "9000:9000"  # Web Dashboard
