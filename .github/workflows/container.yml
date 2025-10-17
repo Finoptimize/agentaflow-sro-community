@@ -189,7 +189,7 @@ jobs:
       
       - name: Start containers with test configuration
         run: |
-          docker-compose -f docker-compose.test.yml up -d
+          docker compose -f docker-compose.test.yml up -d
           echo "Waiting for services to be ready..."
           sleep 45
       
@@ -222,11 +222,11 @@ jobs:
         if: failure()
         run: |
           echo "=== Docker Compose Logs ==="
-          docker-compose -f docker-compose.test.yml logs
+          docker compose -f docker-compose.test.yml logs
       
       - name: Cleanup
         if: always()
-        run: docker-compose -f docker-compose.test.yml down -v
+        run: docker compose -f docker-compose.test.yml down -v
 
   # Release summary
   release-summary:
