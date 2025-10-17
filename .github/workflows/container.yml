@@ -56,7 +56,7 @@ jobs:
         run: go test -v -race -coverprofile=coverage.out $(go list ./... | grep -v /tests/integration)
       
       - name: Upload coverage reports
-        uses: codecov/codecov-action@v4
+        uses: codecov/codecov-action@v5
         if: github.event_name == 'push'
         with:
           file: ./coverage.out
