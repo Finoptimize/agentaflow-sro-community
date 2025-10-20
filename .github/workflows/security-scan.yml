@@ -98,14 +98,23 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
       
       - name: Pull latest image
+        id: pull-image
         run: |
-          docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ matrix.component }}-latest || echo "Image not found, skipping scan"
+          IMAGE_NAME_LOWER=$(echo "${{ env.IMAGE_NAME }}" | tr '[:upper:]' '[:lower:]')
+          if docker pull ${{ env.REGISTRY }}/${IMAGE_NAME_LOWER}:${{ matrix.component }}-latest; then
+            echo "image_exists=true" >> $GITHUB_OUTPUT
+            echo "image_ref=${{ env.REGISTRY }}/${IMAGE_NAME_LOWER}:${{ matrix.component }}-latest" >> $GITHUB_OUTPUT
+          else
+            echo "image_exists=false" >> $GITHUB_OUTPUT
+            echo "Image not found, skipping scan for ${{ matrix.component }}"
+          fi
         continue-on-error: true
       
       - name: Run Trivy container scan
+        if: steps.pull-image.outputs.image_exists == 'true'
         uses: aquasecurity/trivy-action@master
         with:
-          image-ref: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ matrix.component }}-latest
+          image-ref: ${{ steps.pull-image.outputs.image_ref }}
           format: 'sarif'
           output: 'trivy-${{ matrix.component }}.sarif'
           severity: 'CRITICAL,HIGH,MEDIUM'
@@ -113,18 +122,18 @@ jobs:
         continue-on-error: true
       
       - name: Upload container scan results
+        if: steps.pull-image.outputs.image_exists == 'true' && (success() || failure())
         uses: github/codeql-action/upload-sarif@v3
-        if: always()
         with:
           sarif_file: 'trivy-${{ matrix.component }}.sarif'
           category: 'container-${{ matrix.component }}'
         continue-on-error: true
       
       - name: Run Grype vulnerability scanner
+        if: steps.pull-image.outputs.image_exists == 'true'
         uses: anchore/scan-action@v3
-        if: always()
         with:
-          image: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ matrix.component }}-latest
+          image: ${{ steps.pull-image.outputs.image_ref }}
           fail-build: false
           severity-cutoff: high
         continue-on-error: true
