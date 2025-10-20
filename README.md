@@ -13,7 +13,7 @@ Deploy and manage AI infrastructure more efficiently with tools for GPU orchestr
 [![Go Version](https://img.shields.io/badge/Go-1.21+-blue.svg)](https://golang.org/dl/)
 [![Container Build](https://github.com/Finoptimize/agentaflow-sro-community/actions/workflows/container.yml/badge.svg)](https://github.com/Finoptimize/agentaflow-sro-community/actions/workflows/container.yml)
 [![Security Scan](https://github.com/Finoptimize/agentaflow-sro-community/actions/workflows/security-scan.yml/badge.svg)](https://github.com/Finoptimize/agentaflow-sro-community/actions/workflows/security-scan.yml)
-[![Docker Pulls](https://img.shields.io/docker/pulls/finoptimize/agentaflow-sro-community)](https://github.com/Finoptimize/agentaflow-sro-community/pkgs/container/agentaflow-sro-community)
+[![GitHub Container Registry](https://img.shields.io/badge/ghcr.io-agentaflow--sro--community-blue?logo=docker)](https://github.com/Finoptimize/agentaflow-sro-community/pkgs/container/agentaflow-sro-community)
 
 ## 🚀 Features
 
@@ -592,6 +592,7 @@ Contributions are welcome! This is a community edition focused on providing acce
 - 🚧 **CI/CD with GitHub Actions** - Automated builds and publishing to GitHub Packages (In Progress)
 - 📋 **Multi-architecture builds** - AMD64 + ARM64 container support (Planned)
 - 📋 **Helm charts** - Kubernetes deployment templates (Planned)
+- 📋 **AWS Bedrock** - Easy integration with AWS Bedrock (Planned)
 
 ## 🚀 Enterprise Edition (Coming Soon)
 
