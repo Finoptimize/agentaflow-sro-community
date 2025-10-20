@@ -64,8 +64,13 @@ jobs:
           go install golang.org/x/vuln/cmd/govulncheck@latest
           govulncheck ./... || echo "Vulnerabilities found"
       
+      - name: Download dependencies for scanning
+        run: go mod download
+      
       - name: Run Nancy (OSS Index scanner)
-        uses: sonatype-nexus-community/nancy-github-action@main
+        run: |
+          go install github.com/sonatype-nexus-community/nancy@latest
+          go list -json -m all | nancy sleuth
         continue-on-error: true
 
   # Scan container images
