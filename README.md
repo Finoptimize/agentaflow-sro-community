@@ -396,7 +396,7 @@ scheduler.SubmitGPUWorkload(workload)```
 
 ## 🏗️ Architecture
 
-```bash
+```
 agentaflow-sro-community/
 ├── pkg/
 │   ├── gpu/           # GPU orchestration and scheduling
@@ -418,8 +418,7 @@ agentaflow-sro-community/
 └── examples/
     ├── k8s/           # Kubernetes deployment examples
     ├── monitoring/    # Grafana dashboards and configs
-    └── demo/          # Demo applications
-```
+    └── demo/          # Demo applications```
 
 ## 🐳 Container Deployment
 
