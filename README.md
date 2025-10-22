@@ -366,7 +366,8 @@ workload := &k8s.GPUWorkload{
         },
     },
 }
-scheduler.SubmitGPUWorkload(workload)
+scheduler.SubmitGPUWorkload(workload)```
+
 ## 📊 Key Benefits
 
 | Component | Benefit | Impact |
