@@ -366,21 +366,10 @@ workload := &k8s.GPUWorkload{
         },
     },
 }
-scheduler.SubmitGPUWorkload(workload)```
+scheduler.SubmitGPUWorkload(workload)
+```
 
 ## 📊 Key Benefits
-
-| Component | Benefit | Impact |
-|-----------|---------|--------|
-| GPU Scheduling | Optimized utilization | Up to 40% reduction in GPU idle time |
-| Real-time Metrics | Live GPU monitoring | Real-time utilization, temperature, power tracking |
-| **Prometheus Integration** | **Enterprise monitoring** | **Production-ready metrics export and alerting** |
-| **Grafana Dashboards** | **Visual analytics** | **Pre-built dashboards for GPU clusters and cost tracking** |
-| GPU Analytics | Performance insights | Efficiency scoring, trend analysis, cost optimization |
-| Kubernetes Integration | Native K8s scheduling | Seamless integration with existing clusters |
-| Request Batching | Improved throughput | 3-5x increase in requests/second |
-| Response Caching | Reduced latency | Up to 50% faster responses |
-| Cost Tracking | Better budgeting | Full visibility into AI infrastructure costs |
 
 | Component | Benefit | Impact |
 |-----------|---------|--------|
@@ -418,7 +407,8 @@ agentaflow-sro-community/
 └── examples/
     ├── k8s/           # Kubernetes deployment examples
     ├── monitoring/    # Grafana dashboards and configs
-    └── demo/          # Demo applications```
+    └── demo/          # Demo applications
+```
 
 ## 🐳 Container Deployment
 
