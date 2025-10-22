@@ -17,6 +17,14 @@ Deploy and manage AI infrastructure more efficiently with tools for GPU orchestr
 
 Security by Trivy
 
+
+## 🎬 Demo Video
+
+[![AgentaFlow SRO Community Edition Demo](https://img.youtube.com/vi/Zt6KFhWui5A/0.jpg)](https://youtu.be/Zt6KFhWui5A?si=fkiVVI89Ezl1MqD9)
+
+*Click the image above to watch a complete demo of AgentaFlow's GPU monitoring, web dashboard, and Prometheus integration*
+
+
 ## 🚀 Features
 
 ### GPU Orchestration & Scheduling
