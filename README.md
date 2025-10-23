@@ -601,10 +601,9 @@ Contributions are welcome! This is a community edition focused on providing acce
 - ✅ **Web dashboard for monitoring** - Interactive real-time web interface with charts and alerts
 - ✅ **OpenTelemetry distributed tracing** - Complete tracing integration with Jaeger/OTLP support
 - ✅ **Docker containerization** - Production-ready containers with Docker Compose orchestration
-- 🚧 **CI/CD with GitHub Actions** - Automated builds and publishing to GitHub Packages (In Progress)
+- ✅ **CI/CD with GitHub Actions** - Automated builds and publishing to GitHub Packages (In Progress)
 - 📋 **Multi-architecture builds** - AMD64 + ARM64 container support (Planned)
 - 📋 **Helm charts** - Kubernetes deployment templates (Planned)
-- 📋 **AWS Bedrock** - Easy integration with AWS Bedrock (Planned)
 
 ## 🚀 Enterprise Edition (Coming Soon)
 
